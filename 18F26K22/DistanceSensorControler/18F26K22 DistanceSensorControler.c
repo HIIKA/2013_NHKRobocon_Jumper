@@ -9,7 +9,7 @@
 			RA3	<=>	RB3
 			RA4	<=>	RB2
 			RA5	<=>	RB1
-//RC3 <=> RC4
+			RC3 <=> RC4
 //RC0 <=> RC7
 //RC1 <=> RC6
 //RC2 <=> RC5
@@ -31,9 +31,52 @@
 #define ERR_LED pin_b0//エラー出力用
 #define SPECIALPIN pin_b7//特別動作
 //出力ピンと入力ピン（グローバル変数）
-long outputpins[]	={pin_b6,pin_b5,pin_b4,pin_b3,pin_b2,pin_b1};//
-long inputpins[]	={pin_a0,pin_a1,pin_a2,pin_a3,pin_a4,pin_a5};//
-int flags[] 		={     0,     0,     0,     0,     0,     0};//反応した回数を数える
+
+
+#define datasize int8//データサイズ(センサーが8個以上になったらint16)
+unsigned datasize trans_data=0;//送信するデータ各ビットが動作状況を表す
+unsigned datasize before_data=0;//前回送信したときの状況
+
+/*
+int1 out_forward=0;
+int1 out_back;
+int1 out_right;
+int1 out_left;
+int1 out_onejump;
+int1 out_infjump;
+*/
+
+#define was_forward()	bit_test(before_data,0)//前進していたか?
+#define was_back()		bit_test(before_data,1)
+#define was_right()		bit_test(before_data,2)
+#define was_left()		bit_test(before_data,3)
+#define is_forward()	bit_test(trans_data,0)//前進してるか?
+#define is_back()		bit_test(trans_data,1)
+#define is_right()		bit_test(trans_data,2)
+#define is_left()		bit_test(trans_data,3)
+#define is_onejump()	bit_test(trans_data,4)
+#define is_infjump()	bit_test(trans_data,5)
+
+#define pin_forward pin_a0
+#define pin_back pin_a1
+#define pin_right pin_a2
+#define pin_left pin_a3
+#define pin_onejump pin_a4
+#define pin_infjump pin_a5
+#define pin_auto2j pin_c3
+
+#byte port_b = getenv("SFR:PORTB")
+#bit out_forward =	port_b.2//getenv("BIT:RB2")
+#bit out_back =	port_b.3//getenv("BIT:RB3")
+#bit out_right =	port_b.4//getenv("BIT:RB4")
+#bit out_left =	port_b.5//getenv("BIT:RB5")
+#bit out_onejump =	port_b.6//getenv("BIT:RB6")
+#bit out_infjump =	port_b.1//getenv("BIT:RB1")
+
+
+
+long inputpins[]	={pin_forward,pin_back,pin_right,pin_left,pin_onejump,pin_infjump,pin_auto2j};
+int flags[] 		={          0,       0,        0,       0,          0,          0,         0};//反応した回数を数える
 int1 flag_ERR=false;
 
 void initializing(void){
@@ -56,6 +99,142 @@ void initializing(void){
 	enable_interrupts(INT_timer0);
 
 	output_low (ERR_LED);
+}
+
+#inline
+void data_transport(void){//現在の状況を送信する
+	int i;
+	unsigned datasize temp_data = trans_data ^ before_data;
+	if(temp_data==0){//変化がないときは終了
+		return;
+	}
+	for(i=0; i < sizeof(inputpins)/sizeof(inputpins[0]) ; ++i){
+		if(!bit_test(temp_data,i)){//変化していない場合
+			continue;//do nothing
+		}
+		switch(inputpins[i]){
+			//*******************************************************
+		case pin_forward:
+			if(bit_test(trans_data,i)){//前進時に
+				if(is_right()){
+					out_forward=1;
+					out_right=1;
+					out_left=0;
+					out_back=0;
+				}else if(is_left()){
+					out_forward=1;
+					out_right=0;
+					out_left=1;
+					out_back=0;
+				}else{//前進でも後進でもないとき
+					out_forward=1;
+					out_right=0;
+					out_left=0;
+					out_back=0;
+				}
+			}
+			break;
+			//*******************************************************
+		case pin_back:
+			if(bit_test(trans_data,i)){
+				if(is_right()){
+					out_forward=0;
+					out_right=0;
+					out_left=1;
+					out_back=1;
+				}else if(is_left()){
+					out_forward=0;
+					out_right=1;
+					out_left=0;
+					out_back=1;
+				}else{//前進でも後進でもないとき
+					out_forward=0;
+					out_right=0;
+					out_left=0;
+					out_back=1;
+				}
+			}
+			break;
+			//*******************************************************
+		case pin_right:
+			if(bit_test(trans_data,i)){
+				if(is_forward()){
+					out_forward=1;
+					out_right=1;
+					out_left=0;
+					out_back=0;
+				}else if(is_back()){
+					out_forward=0;
+					out_right=0;
+					out_left=1;
+					out_back=1;
+				}else{//前進でも後進でもないとき
+					out_forward=0;
+					out_right=1;
+					out_left=0;
+					out_back=0;
+				}
+			}
+			break;
+			//*******************************************************
+		case pin_left:
+			if(bit_test(trans_data,i)){
+				if(is_forward()){
+					out_forward=1;
+					out_right=0;
+					out_left=1;
+					out_back=0;
+				}else if(is_back()){
+					out_forward=0;
+					out_right=1;
+					out_left=0;
+					out_back=1;
+				}else{//前進でも後進でもないとき
+					out_forward=0;
+					out_right=0;
+					out_left=1;
+					out_back=0;
+				}
+			}
+			break;
+			//*******************************************************
+		case pin_onejump 	:
+			if(bit_test(trans_data,i) && !bit_test(before_data,i)){
+				out_onejump=1;
+				out_infjump=0;
+			}
+			break;
+			//*******************************************************
+		case pin_infjump 	:
+			if(bit_test(trans_data,i) && !bit_test(before_data,i)){
+				out_onejump=0;
+				out_infjump=1;
+			}
+			break;
+			//*******************************************************
+		case pin_auto2j 	:
+			if(bit_test(trans_data,i) && !bit_test(before_data,i)){
+				out_onejump=1;
+				out_infjump=1;
+			}
+			break;
+		}
+	}
+	
+	if(! is_onejump() && ! is_infjump()){
+		out_onejump=0;
+		out_infjump=0;
+	}
+	
+	//とまってるとき
+	if(!is_right()&&!is_left()&&!is_forward()&&!is_back()){
+		out_forward=0;
+		out_right=0;
+		out_left=0;
+		out_back=0;
+	}
+	
+	before_data = trans_data;
 }
 
 
@@ -99,13 +278,98 @@ long check_ssw(long ssw_sig){
 void ExceptionDistanceERR(void)
 {
 	int i;
-	for(i=0; i < sizeof(outputpins)/sizeof(outputpins[0]); ++i)//すべてOFF
+	for(i=0; i < sizeof(inputpins)/sizeof(inputpins[0]); ++i)//すべてOFF
 	{
-		output_low(outputpins[i]);
-		flags[i]=0;
+		flags[i]=0;//フラグ全初期化
 	}
+	trans_data=0;//出力全low
+	data_transport();//出力変更
 	output_high(ERR_LED);
 	flag_err=true;//エラー発生
+}
+
+#inline
+void check_sensor(void){//1.5秒に1回呼ばれたい(願望)
+	int servivecounter=0;
+	unsigned int i;
+	for(i=0; i < sizeof(inputpins)/sizeof(inputpins[0]); ++i){
+		if(SSW_DELAY+100 <= check_ssw(inputpins[i])){//壊れてたら
+			ExceptionDistanceERR();//i番壊れてるよ
+		}else{
+			servivecounter++;//生きてるよ
+		}
+	}
+	
+	if(servivecounter==(sizeof(inputpins)/sizeof(inputpins[0]) )){//全部生きているっぽかったら
+		output_low (ERR_LED);
+		flag_err=false;//エラーなんてなかった
+	}
+}
+
+#inline
+int1 check_continue(unsigned int num){
+	
+	//移動中はジャンプ関係のセンサを停止
+	if(out_forward||out_back||out_right||out_left){
+		if(inputpins[num]==pin_onejump
+		 ||inputpins[num]==pin_infjump
+		 ||inputpins[num]==pin_auto2j){//ジャンプ関係
+			flags[num]=0;
+			bit_clear(trans_data,num);
+			return (1);
+		}
+	}
+	
+	//すべてのセンサーを停止
+	if(input(SPECIALPIN)){
+		flags[num]=0;
+		bit_clear(trans_data,num);
+		return (1);
+	}
+	
+	//エラーフラグが立っているときもすべて動作しない
+	if(flag_err){
+		flags[num]=0;
+		bit_clear(trans_data,num);
+		return (1);
+	}
+	
+	//後進しているときは前虫
+	if(inputpins[num]==pin_forward && was_back()){
+		flags[num]=0;
+		bit_clear(trans_data,num);
+		return (1);
+	}
+	
+	//前進しているときは後虫
+	if(inputpins[num]==pin_back && was_forward()){
+		flags[num]=0;
+		bit_clear(trans_data,num);
+		return (1);
+	}
+	//右まわってるときは左虫
+	if(inputpins[num]==pin_left && was_right()){
+		flags[num]=0;
+		bit_clear(trans_data,num);
+		return (1);
+	}
+	//左まわってるときは右虫
+	if(inputpins[num]==pin_right && was_left()){
+		flags[num]=0;
+		bit_clear(trans_data,num);
+		return (1);
+	}
+	
+	//前後に動いてなくて旋回しているとき前進後進を無視
+	if(inputpins[num]==pin_forward || inputpins[num]==pin_back){
+		if(!was_forward() && !was_back()&& (was_right() || was_left()) ){
+			flags[num]=0;
+			bit_clear(trans_data,num);
+			return (1);
+		}
+	}
+	
+	return (0);
 }
 
 #INT_timer0
@@ -113,41 +377,25 @@ int interval(void)
 {
 	long distance;
 	int i;
-	static long operating=0;
-	int servivecounter=0;
+	static int checkcounter=0;//100回に1回は総チェックを入れる
+	
+	if( 50 < checkcounter++ || flag_err)
+	{
+		checkcounter=0;//リセット
+		check_sensor();
+	}
 	
 	for(i=0; i < sizeof(inputpins)/sizeof(inputpins[0]); ++i)
 	{
+		if(check_continue(i)){
+			continue;
+		}
+		
 		//距離をとる
 		distance=check_ssw(inputpins[i]);
 		//壊れてないか点検
 		if(distance < SSW_DELAY+100)//正常範囲の時(overを含む)
 		{
-			servivecounter++;//壊れていないものをカウントする
-			
-			//現在稼働中のpinではない時ここで正常なら次へ
-			if(operating!=0 && operating!=inputpins[i])
-			{
-				output_low(outputpins[i]);
-				flags[i]=0;
-				continue;
-			}
-			
-			//特別動作中はセンサーはすべて作動しない
-			if(input(SPECIALPIN)){
-				output_low(outputpins[i]);
-				flags[i]=0;
-				continue;
-			}
-			
-			//エラーフラグが立っているときもすべて動作しない
-			if(flag_err){
-				output_low(outputpins[i]);
-				flags[i]=0;
-				continue;
-			}
-			
-			
 			if(distance < DETECTDISTANCE)//指定距離内の時
 			{
 				flags[i]=(flags[i]<3) ? flags[i]+1:flags[i];//インクリメント
@@ -155,13 +403,11 @@ int interval(void)
 				flags[i]=(flags[i]>0) ? flags[i]-1:flags[i];//減らす
 			}
 			
-			if(operating==0 && flags[i]==3){//動作中のセンサがなく、3になったら
-				output_high(outputpins[i]);
-				operating=inputpins[i];//現在稼働中を指定
+			if(bit_test(trans_data,i)==0 && flags[i]==3){//そのセンサが動作中でなく、3になったら
+				bit_set(trans_data,i);
 			}
-			if(operating==inputpins[i] && flags[i]==0){//動作中のセンサが0になってしまったら
-				output_low(outputpins[i]);
-				operating=0;//どれも稼働してない
+			if(bit_test(trans_data,i)==1 && flags[i]==0){//動作中のセンサが0になってしまったら
+				bit_clear(trans_data,i);
 			}
 			
 		}
@@ -170,13 +416,12 @@ int interval(void)
 		}
 	}
 	
-	if(servivecounter==(sizeof(inputpins)/sizeof(inputpins[0]) )){//全部生きているっぽかったら
-		output_low (ERR_LED);
-		flag_err=false;//エラーなんてなかった
-	}
-	set_timer0(INTERVALTIME);
+	data_transport();//ここでデータを送信する
+
+	set_timer0(INTERVALTIME);//30msおきに割り込み
 	return 0;
 }
+
 
 
 int main(void)
