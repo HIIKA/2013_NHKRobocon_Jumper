@@ -31,7 +31,7 @@
 
 #define SWITCHINPUT 	pin_a3//スイッチ入力
 #define INTERRUPT	 	pin_a4//フォトインタラプタ入力
-#define MOVING 			pin_a5//移動中出力
+#define MOVING 			pin_a5//移動中入力
 #define LEFTTURN 		pin_a0//左回り入力
 #define RIGHTTURN 		pin_a1//右回り入力
 #define STOPTURN 		pin_a2//停止 入力
@@ -40,14 +40,22 @@
 #define SWITCHLED 		pin_b7//スイッチを認識した時に光らせる
 #define SPECIALLED 		pin_b3//特別シーケンスを行っているときに光る
 #define ERRLED 			pin_b4//エラーが起こると光る
-#define WINDING 		pin_b5//巻取り中に光る
+#define WINDING 		pin_b5//巻取り中に出力
 #define SEQUENCEMODE 	pin_b6//特別シーケンスを行っているときに出力する
 #define SPFORWARD 		pin_b2//特別シーケンスで前進するときに出力する
 #define JEJEJEOUT		pin_c4//ジャンプするときにじぇじぇじぇ
+#define TACTSWITCH		pin_c7//タクトスイッチで性回転の微調整
 #define CLOCKWISE 		0b00001010
 #define C_CLOCKWISE 	0b00000101 
 #define WISESTOP 		0b00001001
 #define DEADTIME		1	//ms
+
+//input(SWWITCHINPT)	スイッチが入るとTrue
+//input(INTERRUPT)		切れ目の時True
+//input(MOVING)			移動中の時True
+//input(～～TURN)		Trueのとき、その方向に回転してる,STOPは止まってる
+
+
 
 void initializing(void){
 	//ｵｼﾚｰﾀ設定
@@ -58,7 +66,7 @@ void initializing(void){
 	output_c(WISESTOP);//回転停止でスタート
 	set_tris_a(0x1F);//0b00011111
 	set_tris_b(0x03);//0b00000011
-	set_tris_c(0);
+	set_tris_c(0x80);//0b10000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
 }
 
@@ -69,6 +77,9 @@ void change_c(int port){
 }
 void Exception_ERR(void){
 	change_c(0);//出力なし
+	output_low (WINDING);
+	output_low (SEQUENCEMODE);
+	output_low (SPFORWARD);
 	while(true){
 		output_toggle(ERRLED);//無限ループ
 		delay_ms(1000);
@@ -76,7 +87,7 @@ void Exception_ERR(void){
 }
 
 //巻き上げ処理、これでジャンプも行う
-int Sequence_Winding(int1 flag=0){//切れ目を見つけたいだけなら
+int Sequence_Winding(int1 flag=0){//切れ目を見つけたいだけならflag1
 	int counter =0;
 	
 	change_c( WISESTOP);
@@ -86,9 +97,9 @@ int Sequence_Winding(int1 flag=0){//切れ目を見つけたいだけなら
 	output_low (ERRLED);
 	
 	output_high(WINDING);
-	if(input(INTERRUPT)&&flag){//フラグがあり、すでに切れ目にいるなら
-		change_c( WISESTOP);//巻き上げを行う
-		output_high(WINDING);
+	if(flag&&input(INTERRUPT)){//フラグがあり、すでに切れ目にいるならまわさない
+		change_c( WISESTOP);//巻き上げ停止
+		output_low (WINDING);
 		return 0;//正常終了
 	}
 	
@@ -101,19 +112,24 @@ int Sequence_Winding(int1 flag=0){//切れ目を見つけたいだけなら
 			return 1;
 		}
 		output_c((input_c() & 0xf0) | CLOCKWISE);//pwm
-		delay_us(25);
+		delay_us(19);
 		output_c((input_c() & 0xf0) | 0);//pwm
 		delay_us(25);
 	}
-
-	change_c( CLOCKWISE);//巻き上げを行う
+	
+	change_c( CLOCKWISE);//PWMで0になっても良いよう再度巻き上げを行う
 	set_timer0(0);
 	while(!input(INTERRUPT)){//歯車の切れ目に行くまで巻き上げ
 		if(get_timer0()>=(LONG_MAX-100)){//オーバーフロー直前
-			set_timer0(0);
-			counter++;
+			set_timer0(0);//タイマリセットして
+			counter++;//インクリメント
 		}
 		if(counter == 1 && get_timer0() > 30000L){//約1.5秒以内にまた切れ目を見つけれないとエラー
+			Exception_ERR();
+			return 1;
+		}
+		//ストールの疑い,0.5秒たっても停止信号が来ていたら
+		if( input(INTERRUPT) &&( ( (get_timer0() >= 30000 && counter == 0) || counter >= 1) && input(STOPTURN) ) ){
 			Exception_ERR();
 			return 1;
 		}
@@ -146,6 +162,7 @@ void Sequence_Onejump(){
 	output_low (SPECIALLED);
 	output_low (SEQUENCEMODE);
 }
+
 void Sequence_Infinityjump(){
 	int i;
 	output_high(SPECIALLED);
@@ -165,6 +182,7 @@ void Sequence_Infinityjump(){
 	output_low (SPECIALLED);
 	output_low (SEQUENCEMODE);
 }
+
 void Sequence_Twojump(){
 	output_high(SWITCHLED);
 	//縄が来るの待機
@@ -202,6 +220,19 @@ int main(void)
 	{
 		if(input(MOVING)){
 			continue;
+		}else{//移動中でない時
+			if(input(TACTSWITCH)){//微調整スイッチ...いきいますよー
+				output_high(WINDING);
+				change_c(CLOCKWISE);
+				while(input(TACTSWITCH)){
+					output_c((input_c() & 0xf0) | CLOCKWISE);//pwm
+					delay_us(29);
+					output_c((input_c() & 0xf0) | 0);//pwm
+					delay_us(21);
+				}
+				change_c(WISESTOP);
+				output_low (WINDING);
+			}
 		}
 		
 		if(input(ONEJUMP)){
