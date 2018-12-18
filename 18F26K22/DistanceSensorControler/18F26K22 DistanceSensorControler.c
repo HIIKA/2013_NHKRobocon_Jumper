@@ -2,17 +2,20 @@
 距離センサー制御部
 			RB7=>特別シーケンス中の動作停止を受け取る入力ピン
 			RB0=>LED1//なんかつながってないセンサーあるよ！
-		入力ピン	<=>	出力ピン
-			RA0	<=>	RB6 
-			RA1	<=>	RB5
-			RA2	<=>	RB4
-			RA3	<=>	RB3
-			RA4	<=>	RB2
-			RA5	<=>	RB1
-			RC3 <=> RC4
-//RC0 <=> RC7
-//RC1 <=> RC6
-//RC2 <=> RC5
+前進センサー			:RA0
+後進センサー			:RA1
+右旋回センサー			:RA2
+左旋回センサー			:RA3
+一回ジャンプセンサー	:RA4
+無限回ジャンプセンサー	:RA5
+自動2回ジャンプセンサー	:RC3
+前進出力				:RB2
+後進出力				:RB3
+右旋回出力				:RB4
+左旋回出力				:RB5
+一回ジャンプ出力		:RB6
+無限回ジャンプ出力		:RB1
+
 ************************************************/
 #include <18f26K22.h>
 #include <limits.h>
@@ -28,6 +31,7 @@
 #define SSW_DELAY 800				//求める最大の距離[mm]
 #define INTERVALTIME 0xF8AD
 #define DETECTDISTANCE 200 //反応距離
+#define AUTO2JDISTANCE 100 //auto2jの反応距離
 #define ERR_LED pin_b0//エラー出力用
 #define SPECIALPIN pin_b7//特別動作
 //出力ピンと入力ピン（グローバル変数）
@@ -378,6 +382,7 @@ int interval(void)
 	long distance;
 	int i;
 	static int checkcounter=0;//100回に1回は総チェックを入れる
+	long detectivedistance;
 	
 	if( 50 < checkcounter++ || flag_err)
 	{
@@ -396,7 +401,13 @@ int interval(void)
 		//壊れてないか点検
 		if(distance < SSW_DELAY+100)//正常範囲の時(overを含む)
 		{
-			if(distance < DETECTDISTANCE)//指定距離内の時
+			if(inputpins[i]==pin_auto2j){
+				detectivedistance=AUTO2JDISTANCE;
+			}else{
+				detectivedistance=DETECTDISTANCE;
+			}
+			
+			if(distance < detectivedistance)//指定距離内の時
 			{
 				flags[i]=(flags[i]<3) ? flags[i]+1:flags[i];//インクリメント
 			}else{
