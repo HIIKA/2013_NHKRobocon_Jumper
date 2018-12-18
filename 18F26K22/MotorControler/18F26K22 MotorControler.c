@@ -22,6 +22,13 @@ CCP2			:RB5(CCP3)->LED
 
 #use fast_io(all)
 
+//TRYマクロですわ
+#define TRY                 /* TRY-CATCH */
+#define THROW(name)         goto TRY_TAG_ERROR_##name
+#define CATCH(name)   goto TRY_TAG_RESUME_LAST; TRY_TAG_ERROR_##name:
+#define FINALLY       TRY_TAG_RESUME_LAST:
+
+
 
 #define change_pin1 pin_a0//a0は左側
 #define change_pin2 pin_a1//a1は右側
@@ -31,7 +38,7 @@ CCP2			:RB5(CCP3)->LED
 #define CCP2PIN Pin_b5
 #define ERRLED pin_b4
 #define STOP	0b10011001
-#define TIMER0INTERVAL 0xFFDF //50us
+#define TIMER0INTERVAL 0xFFDF //17us
 #define CHANGEINTERVAL 0xF831 //1ms
 #define PR2 49
 
@@ -40,7 +47,7 @@ int BACK	=	0;
 int LEFT	=	0;
 int RIGHT	=	0;
 
-int recent = STOP;//現在のモーター状況をバックアップ(input_c()のままだとPWMで認識できなくなる)
+int recent = STOP;//現在のモーター状況をバックアップ(input_c()だとPWMで認識できなくなる)
 
 
 #inline //この程度の計算はインライン展開させる
@@ -99,20 +106,6 @@ void initializing(){
 	enable_interrupts(INT_TIMER0);
 }
 
-void Exception_signal_competition(void){//通信競合時の処理
-	output_c(STOP);
-}
-void Exception_winding(void){
-	output_c(STOP);
-}
-
-void Exception_signal_none(void){
-	output_c(STOP);
-}
-
-void change_c(int port){
-	
-}
 
 #INLINE
 void PWM(void){
@@ -169,102 +162,118 @@ void PWM(void){
 #INT_TIMER0
 void mainloop(void){
 	disable_interrupts(INT_TIMER0);//このループ内の処理が伸びた時を考えてループ処理中はﾀｲﾏｰ停止
-	long interval = TIMER0INTERVAL;//通常は20khzで割り込み
- 	static long DeparturePwmCounter = 10000L;
-	
-	if( (int)input(pin_b0)+(int)input(pin_b1)+(int)input(pin_b2)+(int)input(pin_b3)>1 ){//信号が競合してる
-		Exception_signal_competition();//競合エラー
-		recent=STOP;
-		output_high(ERRLED);
-		goto label_function_exit;//関数の終了部へ飛ぶ
-	}else{
-		output_low(ERRLED);
-	}
-	if(input(WINDINGPIN)){//巻取り中のため働きたくありません。
-		Exception_winding();
-		recent=STOP;
-		Set_pwm5_duty(DetermineDuty(100));
-		Set_pwm3_duty(DetermineDuty(100));
-		goto label_function_exit;//関数の終了部へ飛ぶ
-	}
-	
-	if(input(pin_b3)){//forward
-		if(recent!=FORWARD){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=FORWARD;
-		}else{
-			output_c(FORWARD);
+	unsigned long interval = TIMER0INTERVAL;//通常は20khzで割り込み
+	static unsigned long DeparturePwmCounter = 16000L;
+	TRY{
+		if(recent==STOP){
+			output_c(STOP);
 		}
-	}
-	if(input(pin_b2)){//back
-		if(recent!=BACK){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=BACK;
+		if( (int)input(pin_b0)+(int)input(pin_b1)+(int)input(pin_b2)+(int)input(pin_b3)>1 ){//信号が競合してる
+			THROW(SIGCOMP);//関数の終了部へ飛ぶ
 		}else{
-			output_c(BACK);
+			output_low(ERRLED);
 		}
-	}
-	if(input(pin_b1)){//right
-		if(recent!=RIGHT){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=RIGHT;
-		}else{
-			output_c(RIGHT);
+		if(input(WINDINGPIN)){//巻取り中のため働きたくありません。
+			THROW(WIND);//関数の終了部へ飛ぶ
 		}
-	}
-	if(input(pin_b0)){//left
-		if(recent!=LEFT){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=LEFT;
-		}else{
-			output_c(LEFT);
+		if(input(pin_b3)){//forward
+			if(recent!=FORWARD){
+				output_c(0);//dead time
+				DeparturePwmCounter=0;
+				interval=CHANGEINTERVAL;//1ms変化待ち
+				recent=FORWARD;
+				output_high(MOVINGPIN);
+			}else{
+				output_c(FORWARD);
+			}
 		}
-	}
+		if(input(pin_b2)){//back
+			if(recent!=BACK){
+				output_c(0);//dead time
+				DeparturePwmCounter=0;
+				interval=CHANGEINTERVAL;//1ms変化待ち
+				recent=BACK;
+				output_high(MOVINGPIN);
+			}else{
+				output_c(BACK);
+			}
+		}
+		if(input(pin_b1)){//right
+			if(recent!=RIGHT){
+				output_c(0);//dead time
+				DeparturePwmCounter=0;
+				interval=CHANGEINTERVAL;//1ms変化待ち
+				recent=RIGHT;
+				output_high(MOVINGPIN);
+			}else{
+				output_c(RIGHT);
+			}
+		}
+		if(input(pin_b0)){//left
+			if(recent!=LEFT){
+				output_c(0);//dead time
+				DeparturePwmCounter=0;
+				interval=CHANGEINTERVAL;//1ms変化待ち
+				recent=LEFT;
+				output_high(MOVINGPIN);
+			}else{
+				output_c(LEFT);
+			}
+		}
 
-	//オーバーフロー対策
-	if(DeparturePwmCounter==ULONG_MAX){
-		DeparturePwmCounter=16000L;
-	}
+		//オーバーフロー対策
+		if(DeparturePwmCounter==ULONG_MAX){
+			DeparturePwmCounter=16000L;
+		}
 
-	//発信PWM制御
-	if(DeparturePwmCounter == 0){
-		Set_pwm5_duty(DetermineDuty(60));
-		Set_pwm3_duty(DetermineDuty(60));
-	}else if(DeparturePwmCounter == 5000L){
-		Set_pwm5_duty(DetermineDuty(75));
-		Set_pwm3_duty(DetermineDuty(75));
-	}else if(DeparturePwmCounter == 10000L){
-		Set_pwm5_duty(DetermineDuty(85));
-		Set_pwm3_duty(DetermineDuty(85));
-	}else if(DeparturePwmCounter == 15000L){
-		Set_pwm5_duty(DetermineDuty(100));
-		Set_pwm3_duty(DetermineDuty(100));
-	}
-	DeparturePwmCounter++;
-	
-	//PWM用の点滅処理
-	PWM();
-	
-	if(input(pin_b0) ==0 && input(pin_b1) ==0 && input(pin_b2) ==0 && input(pin_b3) ==0){//信号がどれも来てない
-		Exception_signal_none();
+		//発信PWM制御
+		if(DeparturePwmCounter == 0){
+			Set_pwm5_duty(DetermineDuty(60));
+			Set_pwm3_duty(DetermineDuty(60));
+		}else if(DeparturePwmCounter == 5000L){
+			Set_pwm5_duty(DetermineDuty(75));
+			Set_pwm3_duty(DetermineDuty(75));
+		}else if(DeparturePwmCounter == 10000L){
+			Set_pwm5_duty(DetermineDuty(85));
+			Set_pwm3_duty(DetermineDuty(85));
+		}else if(DeparturePwmCounter == 15000L){
+			Set_pwm5_duty(DetermineDuty(100));
+			Set_pwm3_duty(DetermineDuty(100));
+		}
+		
+		DeparturePwmCounter++;
+		
+		//PWM用の点滅処理
+		PWM();
+		
+		if(input(pin_b0) ==0 && input(pin_b1) ==0 && input(pin_b2) ==0 && input(pin_b3) ==0){//信号がどれも来てない
+			THROW(NONSIG);
+		}else{
+			output_high(MOVINGPIN);
+		}
+		
+	}CATCH(SIGCOMP){//Exception_signal_competitio
+		output_c(0);//dead time
 		interval=CHANGEINTERVAL;//1ms変化待ち
-		recent=STOP;
+		recent=STOP;//停止
+		output_high(ERRLED);
+	}CATCH(WIND){//Exception_winding
+		output_c(0);//dead time
+		interval=CHANGEINTERVAL;//1ms変化待ち
+		recent=STOP;//停止
+		Set_pwm5_duty(DetermineDuty(100));
+		Set_pwm3_duty(DetermineDuty(100));
+	}CATCH(NONSIG){//Exception_signal_none
+		if(recent!=STOP){
+			output_c(0);//dead time
+			interval=CHANGEINTERVAL;//1ms変化待ち
+			recent=STOP;//停止
+		}
 		output_low(MOVINGPIN);
-	}else{
-		output_high(MOVINGPIN);
+	}FINALLY{
+		set_timer0(interval);
+		enable_interrupts(INT_TIMER0);//ﾀｲﾏｰ再開
 	}
-	//関数を終了させたいときのラベル
-	label_function_exit:
-	set_timer0(interval);
-	enable_interrupts(INT_TIMER0);//ﾀｲﾏｰ再開
 }
 
 void main(void)
