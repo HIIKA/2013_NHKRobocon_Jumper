@@ -4,24 +4,24 @@
 ロータリーエンコーダー入力ピン2	:RA1 ->encoder RC1 //右回転//逆
 ロータリーエンコーダー入力ピン3	:RA2 ->encoder RC2 //停止信号
 スイッチ入力ピン				:RA3
-フォトインタラプタ入力ピン		:RA4
-移動中入力ピン				:RA5 <-移動モーター制御部より
-1回ジャンプ入力ピン			:RB0 <-センサー制御部より
-無限ジャンプ入力ピン			:RB1 <-センサー制御部より
-スイッチ確認LED出力ピン		:RB7
-特別動作中LED出力ピン		:RB3
-エラーLEDピン				:RB4
-巻取り中出力ピン			:RB5 ->移動モーター制御部へ
-特別動作中出力ピン			:RB6 ->センサー制御部へ
-特別動作前進出力ピン		:RB2 ->移動モーター制御部へ
-じぇじぇじぇ出力ピン			:RC4 ->音声制御部へ
-ダミースイッチ入力ピン			:RC6 <-ダミースイッチ
-タクトスイッチ入力ピン			:RC7 <-スイッチ
+ダミー入力ピン					:RA4
+フォトインタラプタ入力ピン		:RA5
+タクトスイッチ入力			:RB0 
+エラーLED			:RB1 
+1回ジャンプ入力		:RB2 
+無限ジャンプ入力ピン		:RB3 
+特別動作前進出力				:RB4
+巻取り中出力ピン			:RB5 
+特別動作中出力ピン			:RB6 
+移動中入力			:RB7 
 モーター制御出力ピン1			:RC0
 モーター制御出力ピン2			:RC1
 モーター制御出力ピン3			:RC2
 モーター制御出力ピン4			:RC3
-
+じぇじぇじぇ出力ピン			:RC4 
+はーい！出力ピン				:RC5 
+シリアル通信TX1					:RC6
+シリアル通信RX1					:RC7
 ************************************************/
 #include <18f26K22.h>
 #include <limits.h>
@@ -29,7 +29,10 @@
 
 #use delay(clock = 64000000)
 
+#use RS232(baud=9600,xmit=pin_c6,rcv=pin_c7,INVERT)
+
 #use fast_io(all)
+
 
 
 //TRYマクロですわ
@@ -43,23 +46,37 @@
 #define RIGHTTURN 		pin_a1//右回り入力
 #define STOPTURN 		pin_a2//停止 入力
 #define SWITCHINPUT 	pin_a3//スイッチ入力
-#define INTERRUPT	 	pin_a4//フォトインタラプタ入力
-#define MOVING 			pin_a5//移動中入力
-#define ONEJUMP 		pin_b0//一回ジャンプ（センサー制御部から入力）
-#define INFINITYJUMP 	pin_b1//複数回ジャンプ（センサー制御部から入力）
-#define SPFORWARD 		pin_b2//特別シーケンスで前進するときに出力する
-#define SPECIALLED 		pin_b3//特別シーケンスを行っているときに光る
-#define ERRLED 			pin_b4//エラーが起こると光る
+#define DAMMYSWITCH		pin_a4//ダミースイッチ入力
+#define INTERRUPT	 	pin_a5//フォトインタラプタ入力
+#define TACTSWITCH		pin_b0//タクトスイッチで性回転の微調整
+#define ERRLED 			pin_b1//エラーが起こると光る
+#define ONEJUMP 		pin_b2//一回ジャンプ（センサー制御部から入力）
+#define INFINITYJUMP 	pin_b3//複数回ジャンプ（センサー制御部から入力）
+#define SPFORWARD 		pin_b4//特別シーケンスで前進するときに出力する
 #define WINDING 		pin_b5//巻取り中に出力
 #define SEQUENCEMODE 	pin_b6//特別シーケンスを行っているときに出力する
-#define SWITCHLED 		pin_b7//スイッチを認識した時に光らせる
+#define MOVING 			pin_b7//移動中入力
 #define JEJEJEOUT		pin_c4//ジャンプするときにじぇじぇじぇ
-#define DAMMYSWITCH		pin_c6//ダミースイッチ入力
-#define TACTSWITCH		pin_c7//タクトスイッチで性回転の微調整
+#define HEYOUT			pin_c5//はーい！
 #define CLOCKWISE 		0b00001010
 #define C_CLOCKWISE 	0b00000101 
 #define WISESTOP 		0b00001001
 #define DEADTIME		1	//ms
+#define SWITCHCHAR		'A'//スイッチ認識信号文字
+#define ENDSWITCHCHAR	'a'//スイッチ認識終了
+#define SPBEGINCHAR		'B'//自動動作に入った時の文字
+#define SPENDCHAR		'b'//自動動作が終了した時の文字
+#define WAITINGCHAR		'C'//起動待機時の文字
+#define WAITEDCHAR		'c'//起動完了時の文字
+#define ERRCHAR			'E'//エラーが出ている時の文字
+#define FORWARDCHAR		'F'//前進命令が出た時の文字
+#define ENDFORWARDCHAR	'f'//前進命令終了
+#define SIGNALCHAR		'G'//ジャンプ
+#define ENDSIGNALCHAR	'g'//ジャンプタイミング消す
+#define CLEARCHAR		'H'//信号CLEAR
+
+
+
 
 //input(SWWITCHINPT)	スイッチが入るとTrue
 //input(INTERRUPT)		切れ目の時True
@@ -69,32 +86,35 @@
 
 
 void timing_bit(bool bits){
-	output_bit(SWITCHLED,bits);
-	output_bit(SPECIALLED,bits);
-	output_bit(ERRLED,bits);
+	if(bits){
+		putc(SIGNALCHAR);
+	}else{
+		putc(ENDSIGNALCHAR);
+	}
 }
 
 void initializing(void){
-	bool delayflag;//ちかちかにのみ使う
 	//ｵｼﾚｰﾀ設定
 	setup_oscillator(OSC_NORMAL | OSC_64MHZ | OSC_PLL_ON);
 	//TRIS設定
 	output_a(0x00);
 	output_b(0x00);
 	output_c(WISESTOP);//回転停止でスタート
-	set_tris_a(0x3F);//0b00111111
-	set_tris_b(0x03);//0b00000011
-	set_tris_c(0xC0);//0b11000000
+	//a bはtrisを設定しない
+	set_tris_a(0xff);//0b11111111
+	set_tris_b(0x8d);//0b10001101
+	set_tris_c(0x80);//0b10000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
+
+	putc(CLEARCHAR);//起動時信号クリア
 
 	//起動待機処理
 	output_high(SEQUENCEMODE);//モーターとか動かないように
-	while(!input(TACTSWITCH)){//押すの待機
-		timing_bit(++delayflag);//ちかちか
-		delay_ms(200);
-	}
-	timing_bit(false);
+	putc(WAITINGCHAR);
+	while(!input(TACTSWITCH));//押すの待機
+	putc(WAITEDCHAR);
 	while( input(TACTSWITCH));//離すの待機
+	delay_ms(300);
 	output_low (SEQUENCEMODE);//起動待機終了
 	while(input(MOVING)){}//まさか動いてねぇよな？
 	//起動待機処理終了
@@ -110,6 +130,7 @@ void Exception_ERR(long ms=1000){
 	output_low (WINDING);
 	output_low (SEQUENCEMODE);
 	output_low (SPFORWARD);
+	putc(ERRCHAR);
 	while(true){
 		output_toggle(ERRLED);//無限ループ
 		delay_ms(ms);
@@ -119,8 +140,8 @@ void Exception_ERR(long ms=1000){
 
 //巻き上げ処理、これでジャンプも行う
 int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
-	unsigned int timecounter =0;//15625カウント(0.25秒)で1インクリメント
 	unsigned long jumpcounter =0;//ジャンプの回数を数える。
+	unsigned int timecounter =0;//15625カウント(0.25秒)で1インクリメント
 	unsigned int timingcounter=0;//タイミングカウンタ、timecounterとの違いはいちいち飛ぶたびに初期化される
 	bool edgeflag ;
 	int duty=20;
@@ -171,20 +192,18 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 
 			if(edgeflag!=input(INTERRUPT)){//インタラプタに変化があった時
 				edgeflag=input(INTERRUPT);//0なら切れ目から抜ける時、1なら切れ目に入る時
-				if(num==0){//切れ目探しのときはラチェット入る前のずれを考慮した時間を入れない
-					if(edgeflag){//切れ目に入ったら
-						jumpcounter++;//ジャンプしたとみなすとループ終了
-						timingcounter=0;
+				if(edgeflag){//切れ目に入ったら
+					if(num==0){//切れ目探しのときはおしまい
+						break;//ジャンプしたとみなすとループ終了
 					}
-				}else{
-					if(edgeflag&&timecounter >= 7){//動き出した後切れ目に入ったら
+					if(timecounter >= 7){//一定時間経ってたら
 						jumpcounter++;//ジャンプしたとみなす
 						timingcounter=0;
 					}
 				}
 			}
 			
-		}while(jumpcounter<num);//多くなったら抜ける
+		}while(jumpcounter<num);//多くなってたら
 		
 	}CATCH(ERR){
 		Exception_ERR();
@@ -194,19 +213,23 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 	}FINALLY{
 		change_c( WISESTOP);//停止
 		output_low(WINDING);//巻取り終了ー
+		timing_bit(false);//タイミングとるのは消す
 		return 0;//正常終了
 	}
 }
 
 void Sequence_Onejump(){
-	output_high(SPECIALLED);
+	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
+	output_high(HEYOUT);
 	//前進
+	putc(FORWARDCHAR);
 	output_high(SPFORWARD);
 	delay_ms(1000);
 	timing_bit(false);
 	delay_ms(1000);
 	output_low (SPFORWARD);//二秒で停止
+	putc(ENDFORWARDCHAR);
 	timing_bit(true);
 	delay_ms(200);
 	
@@ -214,36 +237,41 @@ void Sequence_Onejump(){
 		Sequence_Winding(1);
 	
 	//前進
+	putc(FORWARDCHAR);
 	output_high(SPFORWARD);
 	delay_ms(2000);
 	output_low (SPFORWARD);
+	putc(ENDFORWARDCHAR);
 	
 	//スペシャルモード終了
-	output_low (SPECIALLED);
+	putc(SPENDCHAR);
 	output_low (SEQUENCEMODE);
+	output_low (HEYOUT);
 }
 
 void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
-	output_high(SPECIALLED);
+	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
 	//前進
+	putc(FORWARDCHAR);
 	output_high(SPFORWARD);
 	delay_ms(1000);
 	timing_bit(false);
 	delay_ms(1000);
 	output_low (SPFORWARD);//2秒で停止
+	putc(ENDFORWARDCHAR);
 	timing_bit(true);
 	delay_ms(200);
 	
 		//ジャンプ
 		Sequence_Winding(cont);//無限の時はuLONG_MAX
 	
-	output_low (SPECIALLED);
+	putc(SPENDCHAR);
 	output_low (SEQUENCEMODE);
 }
 
 void Sequence_Twojump(){
-	output_high(SWITCHLED);
+	putc(SWITCHCHAR);
 	output_high(SEQUENCEMODE);
 	//縄が来るの待機
 	delay_ms(200);
@@ -255,7 +283,7 @@ void Sequence_Twojump(){
 		//ジャンプ
 		Sequence_Winding(2);
 	
-	output_low (SWITCHLED);
+	putc(ENDSWITCHCHAR);
 	//着地待機
 	delay_ms(400);
 	output_low (SEQUENCEMODE);
@@ -273,8 +301,7 @@ int main(void)
 	Sequence_Winding(0);
 	
 	while(true)
-	{
-		
+	{	
 		if(movingflag!=input(MOVING)){
 			movingflag=input(MOVING);
 			if(!movingflag){//移動中ではなくなったとき
@@ -317,7 +344,7 @@ int main(void)
 		}
 		
 		if(input(INFINITYJUMP)){
-			Sequence_Infinityjump(5);
+			Sequence_Infinityjump(6);
 			movingflag=true;//管轄外に行ったので動いていたことにする
 		}
 		
