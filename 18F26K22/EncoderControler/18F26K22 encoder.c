@@ -185,12 +185,14 @@ void RouletteTurnLeft(){
 
 #inline
 void Playroulette(void){
-	if(g_count!=0&&abs(g_count)%25==0){//25の倍数の時ルーレット動かす
+	static signed long before_count;
+	if(g_count!=0&&abs(g_count)%25==0&&before_count!=g_count){//25の倍数の時ルーレット動かす
 		#if ROULETTE_DIRECTION
 		RouletteTurnRight();
 		#else
 		RouletteTurnLeft ();
 		#endif
+		before_count=g_count;
 	}
 	if(g_count==0){//0の時は初期位置に戻す
 		output_c(1);
