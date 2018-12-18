@@ -31,8 +31,9 @@ RB0=>LED1//なんかつながってないセンサーあるよ！
 #define ERR_LED pin_b0//エラー出力用
 #define SPECIALPIN pin_b7//特別動作
 //出力ピンと入力ピン（グローバル変数）
-int outputpins[]	={pin_b6,pin_b5,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4};
-int inputpins[]		={pin_a0,pin_a1,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3};
+int outputpins[]	={pin_b6,pin_b5};//,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4
+int inputpins[]		={pin_a0,pin_a1};//,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3
+int1 flag_ERR=false;
 
 void initializing(void){
 	//ｵｼﾚｰﾀ設定
@@ -47,11 +48,13 @@ void initializing(void){
 	//タイマーセットアップ
 	setup_timer_0(T0_INTERNAL|T0_DIV_256);//インターバル用
 	set_timer0(INTERVALTIME);
-	setup_timer_1(T1_INTERNAL|T1_DIV_BY_8);//センサーに使う
+	setup_timer_3(T3_INTERNAL|T3_DIV_BY_8);//センサーに使う
 	
 	//割り込み許可
 	enable_interrupts(GLOBAL);
 	enable_interrupts(INT_timer0);
+
+	output_low (ERR_LED);
 }
 
 
@@ -73,19 +76,19 @@ long check_ssw(int ssw_sig){
 	output_float(ssw_sig);//SSWをつないだピンを入力に設定
 	//ssw_tris=ssw_tris|ssw_port;
 	
-	set_timer1(0);
+	set_timer3(0);
 	while(!input(ssw_sig))
 	{
-		if((get_timer1()/2 )>760)//規格では750us後に値を返してくるはず
+		if(get_timer3() > (760*2))//規格では750us後に値を返してくるはず
 		{
 			return SSW_DELAY + 200;//センサー反応しなかった
 		}
 	}			//パルスまで待つ
 	
-	set_timer1(0);
-	while(get_timer1()<SSW_DELAY*12){
+	set_timer3(0);
+	while(get_timer3()<SSW_DELAY*12){
 		if(!input(ssw_sig)){
-			nagasa=get_timer1()/12;//長さを返す
+			nagasa=get_timer3()/12;//長さを返す
 			return nagasa;
 		}
 	}
@@ -100,7 +103,7 @@ void ExceptionDistanceERR(void)
 		output_low(outputpins[i]);
 	}
 	output_high(ERR_LED);
-	disable_interrupts(INT_timer0);//エラー発生
+	flag_err=true;//エラー発生
 }
 
 #INT_timer0
@@ -127,6 +130,12 @@ int interval(void)
 			
 			//特別動作中はセンサーはすべて作動しない
 			if(input(SPECIALPIN)){
+				output_low(outputpins[i]);
+				continue;
+			}
+			
+			//エラーフラグが立っているときもすべて動作しない
+			if(flag_err){
 				output_low(outputpins[i]);
 				continue;
 			}
