@@ -30,7 +30,7 @@
 
 #use delay(clock = 64000000)
 
-#use RS232(baud=9600,xmit=pin_c6,rcv=pin_c7,INVERT)
+#use RS232(baud=19200,xmit=pin_c6,rcv=pin_c7,INVERT)
 
 #use fast_io(all)
 
@@ -77,7 +77,8 @@
 #define ENDSIGNALCHAR	'g'//ジャンプタイミング消す
 #define CLEARCHAR		'H'//信号CLEAR
 #define INFCLEARCHAR	'h'//無限回ジャンプの時の信号CLEAR
-
+#define YELLOWCHAR		'I'//黄色に光る
+#define ENDYELLOWCHAR	'i'//黄色消える
 bool infinity_flag=0;
 
 
@@ -96,6 +97,15 @@ void timing_bit(bool bits){
 		putc(ENDSIGNALCHAR);
 	}
 }
+
+void yellow_blink(bool bits){
+	if(bits){
+		putc(YELLOWCHAR);
+	}else{
+		putc(ENDYELLOWCHAR);
+	}
+}
+
 
 void initializing(void){
 	//ｵｼﾚｰﾀ設定
@@ -205,7 +215,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			delay_us(duty);
 			
 			//タイミングをとる
-			if(timingcounter >= 2){
+			if(timingcounter >= 3){
 				timing_bit(true);
 			}else{
 				timing_bit(false);
@@ -244,29 +254,21 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 }
 
 void Sequence_Onejump(){
+	int i;
 	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
 	output_high(HEYOUT);
-	//前進
-	putc(FORWARDCHAR);
-	output_high(SPFORWARD);
-	delay_ms(1000);
-	timing_bit(false);
-	delay_ms(1000);
-	output_low (SPFORWARD);//二秒で停止
-	putc(ENDFORWARDCHAR);
+	
+	for(i=0;i<2;i++){//2秒間点滅
+		yellow_blink(true);
+		delay_ms(500);
+		yellow_blink(false);
+		delay_ms(500);
+	}
 	timing_bit(true);
-	delay_ms(200);
 	
 		//ジャンプ
 		Sequence_Winding(1);
-	
-	//前進
-	putc(FORWARDCHAR);
-	output_high(SPFORWARD);
-	delay_ms(2000);
-	output_low (SPFORWARD);
-	putc(ENDFORWARDCHAR);
 	
 	//スペシャルモード終了
 	putc(SPENDCHAR);
@@ -275,18 +277,17 @@ void Sequence_Onejump(){
 }
 
 void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
+	int i;
 	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
-	//前進
-	putc(FORWARDCHAR);
-	output_high(SPFORWARD);
-	delay_ms(1000);
-	timing_bit(false);
-	delay_ms(1000);
-	output_low (SPFORWARD);//2秒で停止
-	putc(ENDFORWARDCHAR);
+	
+	for(i=0;i<2;i++){//2秒間点滅
+		yellow_blink(true);
+		delay_ms(500);
+		yellow_blink(false);
+		delay_ms(500);
+	}
 	timing_bit(true);
-	delay_ms(200);
 	
 		//ジャンプ
 		Sequence_Winding(cont);//無限の時はuLONG_MAX
@@ -366,6 +367,8 @@ int main(void)
 		if(input(ONEJUMP)){
 			Sequence_Onejump();
 			movingflag=true;//管轄外に行ったので動いていたことにする
+			timecounter=0;//一応時間リセット
+			continue;
 		}
 		
 		if(input(INFINITYJUMP)){
@@ -376,6 +379,8 @@ int main(void)
 			}
 			
 			movingflag=true;//管轄外に行ったので動いていたことにする
+			timecounter=0;//一応時間リセット
+			continue;
 		}
 		
 		if(get_timer0() >= 62500L){
@@ -383,11 +388,13 @@ int main(void)
 			if(timecounter!=uINT_MAX)timecounter++;
 		}
 		
-		if((!input(MOVING))&& timecounter >= 1 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
+		if(! movingflag && !input(MOVING)&& timecounter >= 1 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
 			output_high(JEJEJEOUT);
 			Sequence_Twojump();
 			output_low (JEJEJEOUT);
 			movingflag=true;//管轄外に行ったので動いていたことにする
+			timecounter=0;//一応時間リセット
+			continue;
 		}
 	}
 return 0;
