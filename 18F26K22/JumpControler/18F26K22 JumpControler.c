@@ -31,7 +31,7 @@
 
 #use delay(clock = 64000000)
 
-#use RS232(baud=19200,xmit=pin_c6,rcv=pin_c7,INVERT)
+#use RS232(baud=15200,xmit=pin_c6,rcv=pin_c7,INVERT)
 
 #use fast_io(all)
 
@@ -274,9 +274,9 @@ void Sequence_Onejump(void){
 	delay_ms(500);
 	putc(COUNT1);
 	delay_ms(500);
-	putc(COUNT1);
+	putc(COUNT2);
 	delay_ms(500);
-	putc(COUNT1);
+	putc(COUNT3);
 	delay_ms(500);
 	putc(COUNTEND);
 		//ƒWƒƒƒ“ƒv
@@ -297,9 +297,9 @@ void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
 	delay_ms(500);
 	putc(COUNT1);
 	delay_ms(500);
-	putc(COUNT1);
+	putc(COUNT2);
 	delay_ms(500);
-	putc(COUNT1);
+	putc(COUNT3);
 	delay_ms(500);
 	putc(COUNTEND);
 	
