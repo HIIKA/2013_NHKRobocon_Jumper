@@ -166,17 +166,7 @@ void data_transport(void){//現在の状況を送信する
 			//*******************************************************
 		case pin_right:
 			if(bit_test(trans_data,i)){
-				if(is_forward()){
-					output_high(out_forward);
-					output_high(out_right);
-					output_low(out_left);
-					output_low(out_back);
-				}else if(is_back()){
-					output_low(out_forward);
-					output_low(out_right);
-					output_high(out_left);
-					output_high(out_back);
-				}else{//前進でも後進でもないとき
+				if(!is_forward()&&!is_back()){//前進でも後進でもないとき
 					output_low(out_forward);
 					output_high(out_right);
 					output_low(out_left);
@@ -189,17 +179,7 @@ void data_transport(void){//現在の状況を送信する
 			//*******************************************************
 		case pin_left:
 			if(bit_test(trans_data,i)){
-				if(is_forward()){
-					output_high(out_forward);
-					output_low(out_right);
-					output_high(out_left);
-					output_low(out_back);
-				}else if(is_back()){
-					output_low(out_forward);
-					output_high(out_right);
-					output_low(out_left);
-					output_high(out_back);
-				}else{//前進でも後進でもないとき
+				if(!is_forward()&&!is_back()){//前進でも後進でもないとき
 					output_low(out_forward);
 					output_low(out_right);
 					output_high(out_left);
