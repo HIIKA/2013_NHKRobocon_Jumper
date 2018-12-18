@@ -2,8 +2,8 @@
 ロータリーエンコーダー制御部
 ロータリーエンコーダー入力①	:RB0 <-エンコーダー
 ロータリーエンコーダー入力②	:RB1 <-エンコーダー
-90度で出力						:RC6 ->ジャンプ制御部 RA0
-リセット入力					:RC5 ->ジャンプ制御部 RA1
+確認入力						:RC6 ->ジャンプ制御部 RA0
+カウント出力					:RC5 ->ジャンプ制御部 RA1
 停止出力						:RC4 ->ジャンプ制御部 RA2
 
 **************************************************/
@@ -18,19 +18,21 @@
 
 #define ENCODER_A pin_b0
 #define ENCODER_B pin_b1
-#define NORMALOUT	pin_c6
-#define MESUREIN	pin_c5//角度測定モード
+#define CONFIRMIN	pin_c6
+#define COUNTOUT	pin_c5
 #define STOPTURN	pin_c4
+#define COUNTS		300
 
 signed long g_count = 0;
-unsigned long count = 0;
+signed long count = 0;
 
 void initializing(void){
 	setup_oscillator(OSC_NORMAL | OSC_64MHZ | OSC_PLL_ON);
 	set_tris_a(0);
-	set_tris_b(0x03);//RB7-2:IN1-0:OUT
-	set_tris_c(0b00100000);
+	set_tris_b(0b00000011);
+	set_tris_c(0b01000000);
 	output_a(0x00);
+	output_b(0);
 	output_c(0);
 	setup_timer_0(RTCC_INTERNAL | RTCC_DIV_1);
 	enable_interrupts(INT_EXT);
@@ -143,7 +145,6 @@ void ext1(void)
 void timer()
 {
 	static unsigned int stop_count = 0;
-	static int1 reset_flag=0;
 	if (g_count == count)
 	{
 		stop_count++;
@@ -162,20 +163,15 @@ void timer()
 	
 	count = g_count;
 	
-	//カウンタリセット処理
-	if(reset_flag!=input(MESUREIN)){
-		reset_flag=input(MESUREIN);
-		if(reset_flag){//highになってたら
-			output_low (NORMALOUT);
-			g_count=0;//リセット
-		}
+	if(g_count<= -(COUNTS) || COUNTS <= g_count){
+		output_high(COUNTOUT);
 	}
 	
-	if(abs(g_count)>=100&&reset_flag){//測定モード時
-		output_high(NORMALOUT);
-	}else{
-		output_low (NORMALOUT);
+	if(input(CONFIRMIN)){//確認が来たら
+		g_count=0;//リセット
+		output_low(COUNTOUT);//カウンタリセットした信号
 	}
+	
 	
 	set_timer0(0xC600);
 }
