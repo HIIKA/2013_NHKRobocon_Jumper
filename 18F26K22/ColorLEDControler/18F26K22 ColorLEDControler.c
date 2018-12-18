@@ -26,22 +26,24 @@
 
 #define SWITCHCHAR		'A'//スイッチ認識信号文字
 #define ENDSWITCHCHAR	'a'//スイッチ認識終了
-bool switchflag=0;
 #define SPBEGINCHAR		'B'//自動動作に入った時の文字
 #define SPENDCHAR		'b'//自動動作が終了した時の文字
-bool spflag=0;
 #define WAITINGCHAR		'C'//起動待機時の文字
 #define WAITEDCHAR		'c'//起動完了時の文字
-bool waitflag=0;
 #define ERRCHAR			'E'//エラーが出ている時の文字
-bool errflag=0;
 #define FORWARDCHAR		'F'//前進命令が出た時の文字
 #define ENDFORWARDCHAR	'f'//前進命令終了
-bool forwardflag=0;
 #define SIGNALCHAR		'G'//ジャンプ
 #define ENDSIGNALCHAR	'g'//ジャンプタイミング消す
-bool signalflag=0;
 #define CLEARCHAR		'H'//信号CLEAR
+#define INFCLEARCHAR	'h'//無限回ジャンプの時の信号CLEAR
+bool switchflag=0;
+bool spflag=0;
+bool waitflag=0;
+bool errflag=0;
+bool forwardflag=0;
+bool signalflag=0;
+bool infmode=0;
 #define MOVING pin_a0
 #define MOTORERR pin_a1
 #define SENSORERR pin_a2
@@ -140,9 +142,14 @@ void timer0(void){
 		CreateColor(100,100,100);//white
 		return;
 	}
-
-	//何も信号がなければ適当に光らせる
-	CreateColor(0,0, 100);
+	
+	if(infmode){
+		//無限モードのときは通常時の色が違う
+		CreateColor(0,100,100);
+	}else{
+		//何も信号がなければ適当に光らせる
+		CreateColor(0,0, 100);
+	}
 }
 
 //受信時の処理
@@ -191,6 +198,16 @@ void interrupt_rcv(void){
 		forwardflag=false;
 		signalflag=false;
 		errflag=false;
+		infmode=false;//インフィニティモードではない
+		break;
+	case INFCLEARCHAR:
+		switchflag=false;
+		waitflag=false;
+		spflag=false;
+		forwardflag=false;
+		signalflag=false;
+		errflag=false;
+		infmode=true;//インフィニティモードなんだな
 		break;
 	}
 	timer0();//即座に変更を反応させるためにここで呼び出しておく
