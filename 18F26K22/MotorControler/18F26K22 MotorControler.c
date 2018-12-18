@@ -110,82 +110,14 @@ void Exception_signal_none(void){
 	output_c(STOP);
 }
 
-
-#INT_TIMER0
-void mainloop(void){
-	disable_interrupts(INT_TIMER0);//このループ内の処理が伸びた時を考えてループ処理中はﾀｲﾏｰ停止
-	long interval = TIMER0INTERVAL;//通常は20khzで割り込み
- 	static long DeparturePwmCounter = 10000L;
+void change_c(int port){
 	
-	if( (int)input(pin_b0)+(int)input(pin_b1)+(int)input(pin_b2)+(int)input(pin_b3)>1 ){//信号が競合してる
-		Exception_signal_competition();//競合エラー
-		recent=STOP;
-		output_high(ERRLED);
-		goto label_function_exit;//関数の終了部へ飛ぶ
-	}else{
-		output_low(ERRLED);
-	}
-	if(input(WINDINGPIN)){//巻取り中のため働きたくありません。
-		Exception_winding();
-		recent=STOP;
-		goto label_function_exit;//関数の終了部へ飛ぶ
-	}
-	
-	if(input(pin_b3)){//forward
-		if(recent!=FORWARD){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=FORWARD;
-		}else{
-			output_c(FORWARD);
-		}
-	}
-	if(input(pin_b2)){//back
-		if(recent!=BACK){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=BACK;
-		}else{
-			output_c(BACK);
-		}
-	}
-	if(input(pin_b1)){//right
-		if(recent!=RIGHT){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=RIGHT;
-		}else{
-			output_c(RIGHT);
-		}
-	}
-	if(input(pin_b0)){//left
-		if(recent!=LEFT){
-			output_c(0);//dead time
-			DeparturePwmCounter=0;
-			interval=CHANGEINTERVAL;//1ms変化待ち
-			recent=LEFT;
-		}else{
-			output_c(LEFT);
-		}
-	}
+}
 
-	//オーバーフロー対策
-	if(DeparturePwmCounter==LONG_MAX){
-		DeparturePwmCounter=1L;
-	}
-
-	//発信PWM制御
-	if(DeparturePwmCounter++ == 0){
-		Set_pwm5_duty(DetermineDuty(50));
-		Set_pwm3_duty(DetermineDuty(50));
-	}else if(DeparturePwmCounter >= 10000L){
-		Set_pwm5_duty(DetermineDuty(100));
-		Set_pwm3_duty(DetermineDuty(100));
-	}
-
+#INLINE
+void PWM(void){
+	// a & 0xf =>変化しない
+	// a & 0   =>0になる(強制)
 	//PWM
 	if(recent==FORWARD){
 		if(input(CCP1PIN)){
@@ -232,6 +164,94 @@ void mainloop(void){
 			output_c(input_c() & 0x0f);
 		}
 	}
+}
+
+#INT_TIMER0
+void mainloop(void){
+	disable_interrupts(INT_TIMER0);//このループ内の処理が伸びた時を考えてループ処理中はﾀｲﾏｰ停止
+	long interval = TIMER0INTERVAL;//通常は20khzで割り込み
+ 	static long DeparturePwmCounter = 10000L;
+	
+	if( (int)input(pin_b0)+(int)input(pin_b1)+(int)input(pin_b2)+(int)input(pin_b3)>1 ){//信号が競合してる
+		Exception_signal_competition();//競合エラー
+		recent=STOP;
+		output_high(ERRLED);
+		goto label_function_exit;//関数の終了部へ飛ぶ
+	}else{
+		output_low(ERRLED);
+	}
+	if(input(WINDINGPIN)){//巻取り中のため働きたくありません。
+		Exception_winding();
+		recent=STOP;
+		Set_pwm5_duty(DetermineDuty(100));
+		Set_pwm3_duty(DetermineDuty(100));
+		goto label_function_exit;//関数の終了部へ飛ぶ
+	}
+	
+	if(input(pin_b3)){//forward
+		if(recent!=FORWARD){
+			output_c(0);//dead time
+			DeparturePwmCounter=0;
+			interval=CHANGEINTERVAL;//1ms変化待ち
+			recent=FORWARD;
+		}else{
+			output_c(FORWARD);
+		}
+	}
+	if(input(pin_b2)){//back
+		if(recent!=BACK){
+			output_c(0);//dead time
+			DeparturePwmCounter=0;
+			interval=CHANGEINTERVAL;//1ms変化待ち
+			recent=BACK;
+		}else{
+			output_c(BACK);
+		}
+	}
+	if(input(pin_b1)){//right
+		if(recent!=RIGHT){
+			output_c(0);//dead time
+			DeparturePwmCounter=0;
+			interval=CHANGEINTERVAL;//1ms変化待ち
+			recent=RIGHT;
+		}else{
+			output_c(RIGHT);
+		}
+	}
+	if(input(pin_b0)){//left
+		if(recent!=LEFT){
+			output_c(0);//dead time
+			DeparturePwmCounter=0;
+			interval=CHANGEINTERVAL;//1ms変化待ち
+			recent=LEFT;
+		}else{
+			output_c(LEFT);
+		}
+	}
+
+	//オーバーフロー対策
+	if(DeparturePwmCounter==ULONG_MAX){
+		DeparturePwmCounter=16000L;
+	}
+
+	//発信PWM制御
+	if(DeparturePwmCounter == 0){
+		Set_pwm5_duty(DetermineDuty(60));
+		Set_pwm3_duty(DetermineDuty(60));
+	}else if(DeparturePwmCounter == 5000L){
+		Set_pwm5_duty(DetermineDuty(75));
+		Set_pwm3_duty(DetermineDuty(75));
+	}else if(DeparturePwmCounter == 10000L){
+		Set_pwm5_duty(DetermineDuty(85));
+		Set_pwm3_duty(DetermineDuty(85));
+	}else if(DeparturePwmCounter == 15000L){
+		Set_pwm5_duty(DetermineDuty(100));
+		Set_pwm3_duty(DetermineDuty(100));
+	}
+	DeparturePwmCounter++;
+	
+	//PWM用の点滅処理
+	PWM();
 	
 	if(input(pin_b0) ==0 && input(pin_b1) ==0 && input(pin_b2) ==0 && input(pin_b3) ==0){//信号がどれも来てない
 		Exception_signal_none();
