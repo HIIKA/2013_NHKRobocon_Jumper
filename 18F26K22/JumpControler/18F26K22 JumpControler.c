@@ -151,7 +151,7 @@ void change_c(int port){
 void Exception_ERR(void){
 	change_c(0);//èoóÕÇ»Çµ
 	output_low (WINDING);
-	output_low (SEQUENCEMODE);
+	output_high (SEQUENCEMODE);//ìÆÇ©Ç»Ç¢ÇÊÇ§Ç…ÉZÉìÉTí‚é~
 	output_low (SPFORWARD);
 	putc(ERRCHAR);
 	output_high(ERRLED);
