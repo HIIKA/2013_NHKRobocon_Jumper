@@ -15,6 +15,7 @@
 特別動作中出力ピン			:RB6 ->センサー制御部へ
 特別動作前進出力ピン		:RB2 ->移動モーター制御部へ
 じぇじぇじぇ出力ピン			:RC4 ->音声制御部へ
+ダミースイッチ入力ピン			:RC6 <-ダミースイッチ
 タクトスイッチ入力ピン			:RC7 <-スイッチ
 モーター制御出力ピン1			:RC0
 モーター制御出力ピン2			:RC1
@@ -53,6 +54,7 @@
 #define SEQUENCEMODE 	pin_b6//特別シーケンスを行っているときに出力する
 #define SWITCHLED 		pin_b7//スイッチを認識した時に光らせる
 #define JEJEJEOUT		pin_c4//ジャンプするときにじぇじぇじぇ
+#define DAMMYSWITCH		pin_c6//ダミースイッチ入力
 #define TACTSWITCH		pin_c7//タクトスイッチで性回転の微調整
 #define CLOCKWISE 		0b00001010
 #define C_CLOCKWISE 	0b00000101 
@@ -75,7 +77,7 @@ void initializing(void){
 	output_c(WISESTOP);//回転停止でスタート
 	set_tris_a(0x3F);//0b00111111
 	set_tris_b(0x03);//0b00000011
-	set_tris_c(0x80);//0b10000000
+	set_tris_c(0xC0);//0b11000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
 }
 
@@ -141,7 +143,6 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			
 			if(edgeflag!=input(INTERRUPT)){//インタラプタに変化があった時
 				edgeflag=input(INTERRUPT);//0なら切れ目から抜ける時、1なら切れ目に入る時
-				output_bit(JEJEJEOUT,!edgeflag);//切れ目から抜けるときJEJEJE,入る時0
 				if(num==0){//切れ目探しのときはラチェット入る前のずれを考慮した時間を入れない
 					if(edgeflag){//切れ目に入ったら
 						jumpcounter++;//ジャンプしたとみなすとループ終了
@@ -286,8 +287,10 @@ int main(void)
 			if(timecounter!=uINT_MAX)timecounter++;
 		}
 		
-		if((!input(MOVING))&& timecounter >= 2 &&input(SWITCHINPUT)){
+		if((!input(MOVING))&& timecounter >= 2 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
+			output_high(JEJEJEOUT);
 			Sequence_Twojump();
+			output_low (JEJEJEOUT);
 			movingflag=true;//管轄外に行ったので動いていたことにする
 		}
 	}
