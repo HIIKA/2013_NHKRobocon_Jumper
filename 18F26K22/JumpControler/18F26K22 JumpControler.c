@@ -151,7 +151,7 @@ void change_c(int port){
 void Exception_ERR(void){
 	change_c(0);//出力なし
 	output_low (WINDING);
-	output_high(SEQUENCEMODE);
+	output_low (SEQUENCEMODE);
 	output_low (SPFORWARD);
 	putc(ERRCHAR);
 	output_high(ERRLED);
@@ -350,6 +350,29 @@ void Sequence_ManualTurn(void){
 	change_c(WISESTOP);
 	output_low (WINDING);
 }
+
+void Sequence_Auto2j(void){
+	putc(SPBEGINCHAR);
+	output_high(SEQUENCEMODE);
+	putc(FORWARDCHAR);
+	output_high(SPFORWARD);
+	delay_ms(1400);
+	timing_bit(false);
+	delay_ms(400);
+	timing_bit(true);
+	delay_ms(200);//total=2000
+	putc(ENDFORWARDCHAR);
+	output_low(SPFORWARD);
+	output_high(JEJEJEOUT);
+		//ジャンプ
+		Sequence_Winding(2);
+	output_low (JEJEJEOUT);
+	putc(SPENDCHAR);
+	//着地待機
+	delay_ms(400);
+	output_low (SEQUENCEMODE);
+}
+
 int main(void)
 {
 	bool movingflag=true;//エッジ検出のみに使う
@@ -382,14 +405,21 @@ int main(void)
 			}
 		}
 		
-		if(input(ONEJUMP)){
+		if(input(ONEJUMP)&&input(INFINITYJUMP)){
+			Sequence_Auto2j();
+			movingflag=true;//管轄外に行ったので動いていたことにする
+			timecounter=0;//一応時間リセット
+			continue;
+		}
+		
+		if(input(ONEJUMP)&&!input(INFINITYJUMP)){
 			Sequence_Onejump();
 			movingflag=true;//管轄外に行ったので動いていたことにする
 			timecounter=0;//一応時間リセット
 			continue;
 		}
 		
-		if(input(INFINITYJUMP)){
+		if(!input(ONEJUMP)&&input(INFINITYJUMP)){
 			if(infinity_flag){//無限ジャンプするべきか否か
 				Sequence_Infinityjump(uLONG_MAX);
 			}else{
