@@ -5,7 +5,15 @@
 確認入力						:RB2 ->ジャンプ制御部 RA0
 カウント出力					:RB3 ->ジャンプ制御部 RA1
 停止出力						:RB4 ->ジャンプ制御部 RA2
+LED切り替え1					:RA0
+LED切り替え2					:RA1
+ルーレットピン					:PORTC
 
+ルーレット実装テスト
+LED16個？
+400カウントで一周
+LED一つ当たり25カウント
+向きがおかしければマクロで変更
 **************************************************/
 #include <18f26K22.h>
 #include <limits.h>
@@ -21,10 +29,13 @@
 #define CONFIRMIN	pin_b2
 #define COUNTOUT	pin_b3
 #define STOPTURN	pin_b4
+#define SELECTPIN1 pin_a0
+#define SELECTPIN2 pin_a1
 #define COUNTS		300
+#define ROULETTE_DIRECTION	true//ルーレットの回る方向
 
 signed long g_count = 0;
-unsigned long count = 0;
+signed long count = 0;
 
 void initializing(void){
 	setup_oscillator(OSC_NORMAL | OSC_64MHZ | OSC_PLL_ON);
@@ -38,13 +49,15 @@ void initializing(void){
 	output_drive(STOPTURN);
 	output_a(0x00);
 	output_b(0);
-	output_c(0);
 	setup_timer_0(RTCC_INTERNAL | RTCC_DIV_1);
 	enable_interrupts(INT_EXT);
 	enable_interrupts(INT_EXT1);	
 	enable_interrupts(INT_TIMER0);
 	enable_interrupts(GLOBAL);
 	set_timer0(0xC600);
+	output_c(1);
+	output_high(SELECTPIN1);
+	output_low (SELECTPIN2);
 }
 
 #inline
@@ -145,6 +158,46 @@ void ext1(void)
 		//output_c(RIGHTTURN);
 	}
 }
+void ToggleSelectPin(void){
+	output_toggle(SELECTPIN1);
+	output_toggle(SELECTPIN2);
+	if(input(SELECTPIN1)==input(SELECTPIN2)){//おかしいとき
+		output_high(SELECTPIN1);
+		output_low (SELECTPIN2);
+	}
+}
+void RouletteTurnRight(void){
+	if((input_c()>>1)!=0){
+		output_c(input_c()>>1);
+	}else{
+		ToggleSelectPin();
+		output_c(0x80);
+	}
+}
+void RouletteTurnLeft(){
+	if((input_c()<<1)!=0){
+		output_c(input_c()<<1);
+	}else{
+		ToggleSelectPin();
+		output_c(0x01);
+	}
+}
+
+#inline
+void Playroulette(void){
+	if(g_count!=0&&abs(g_count)%25==0){//25の倍数の時ルーレット動かす
+		#if ROULETTE_DIRECTION
+		RouletteTurnRight();
+		#else
+		RouletteTurnLeft ();
+		#endif
+	}
+	if(g_count==0){//0の時は初期位置に戻す
+		output_c(1);
+		output_high(SELECTPIN1);
+		output_low (SELECTPIN2);
+	}
+}
 
 #INT_TIMER0
 void timer()
@@ -168,7 +221,7 @@ void timer()
 	
 	count = g_count;
 	
-	if(g_count<= -(COUNTS) || COUNTS <= g_count){
+	if(COUNTS <= abs(g_count)){
 		output_high(COUNTOUT);
 	}
 	
@@ -177,6 +230,7 @@ void timer()
 		output_low(COUNTOUT);//カウンタリセットした信号
 	}
 	
+	Playroulette();//ルーレット処理ルーチン
 	
 	set_timer0(0xC600);
 }
