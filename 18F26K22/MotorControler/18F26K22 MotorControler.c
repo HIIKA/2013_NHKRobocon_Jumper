@@ -43,7 +43,7 @@ CCP2			:RB5(CCP3)->LED
 #define CHANGEINTERVAL 0xF831 //1ms
 #define PR2 49
 
-#define LEAN_DUTY 80//斜め移動のためのデューティ
+#define LEAN_DUTY 60//斜め移動のためのデューティ
 
 #define pin_forward pin_b3
 #define pin_back pin_b2
