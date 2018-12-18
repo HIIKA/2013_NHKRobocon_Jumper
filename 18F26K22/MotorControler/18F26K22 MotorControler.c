@@ -10,8 +10,9 @@ CCP2			:RB5(CCP3)->LED
 モーター前進入力 	:RB3 <-センサー制御部より
 モーター後進入力 	:RB2 <-センサー制御部より
 モーター面舵入力 	:RB1 <-センサー制御部より
-モーター取舵入力 	:RB0 <-センサー制御部より
-
+モーター裏舵入力 	:RB0 <-センサー制御部より
+ピアノスイッチ１	:RA0
+ピアノスイッチ２	:RA1
 
 ************************************************/
 #include <18f26K22.h>
@@ -212,7 +213,7 @@ void mainloop(void){
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){//right
-			if(recent!=RIGHT){
+			if(recent!=RIGHT|| lean_rightflag || lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -225,7 +226,7 @@ void mainloop(void){
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){//left
-			if(recent!=LEFT){
+			if(recent!=LEFT|| lean_rightflag || lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -239,7 +240,7 @@ void mainloop(void){
 		}
 		//前進+右
 		if(input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){
-			if(recent!=FORWARD|| !lean_rightflag|| lean_leftflag){
+			if(recent==FORWARD|| !lean_rightflag|| lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -250,10 +251,11 @@ void mainloop(void){
 			}else{
 				output_c(FORWARD);
 			}
+			output_c(0xff);
 		}
 		//前進+左
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){
-			if(recent!=FORWARD|| lean_rightflag|| !lean_leftflag){
+			if(recent==FORWARD|| lean_rightflag|| !lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -267,7 +269,7 @@ void mainloop(void){
 		}
 		//後進+右
 		if(!input(pin_forward)&&input(pin_back)&&input(pin_right)&&!input(pin_left)){
-			if(recent!=BACK|| lean_rightflag|| !lean_leftflag){
+			if(recent==BACK|| lean_rightflag|| !lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -281,7 +283,7 @@ void mainloop(void){
 		}
 		//後進+左
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&input(pin_left)){
-			if(recent!=BACK|| !lean_rightflag|| lean_leftflag){
+			if(recent==BACK|| !lean_rightflag|| lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -302,15 +304,19 @@ void mainloop(void){
 
 		//発信PWM制御
 		if(DeparturePwmCounter == 0){
-			Set_pwm5_duty(DetermineDuty(60));
-			Set_pwm3_duty(DetermineDuty(60));
 			if(lean_rightflag){
 				DeparturePwmCounter=16000L;
-				Set_pwm3_duty(100);
+				Set_pwm3_duty(40);
+				Set_pwm5_duty(100);
+			}else{
+				Set_pwm3_duty(DetermineDuty(60));
 			}
 			if(lean_leftflag){
 				DeparturePwmCounter=16000L;
-				Set_pwm5_duty(100);
+				Set_pwm5_duty(40);
+				Set_pwm3_duty(100);
+			}else{
+				Set_pwm5_duty(DetermineDuty(60));
 			}
 		}else if(DeparturePwmCounter == 5000L){
 			Set_pwm5_duty(DetermineDuty(75));
