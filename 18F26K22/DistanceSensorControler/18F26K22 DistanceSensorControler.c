@@ -9,7 +9,7 @@
 			RA3	<=>	RB3
 			RA4	<=>	RB2
 			RA5	<=>	RB1
-			RC3 <=> RC4
+//RC3 <=> RC4
 //RC0 <=> RC7
 //RC1 <=> RC6
 //RC2 <=> RC5
@@ -31,9 +31,9 @@
 #define ERR_LED pin_b0//エラー出力用
 #define SPECIALPIN pin_b7//特別動作
 //出力ピンと入力ピン（グローバル変数）
-long outputpins[]	={pin_b6,pin_b5,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4};//
-long inputpins[]	={pin_a0,pin_a1,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3};//
-int flags[] 		={     0,     0,     0,     0,     0,     0,     0};//反応した回数を数える
+long outputpins[]	={pin_b6,pin_b5,pin_b4,pin_b3,pin_b2,pin_b1};//
+long inputpins[]	={pin_a0,pin_a1,pin_a2,pin_a3,pin_a4,pin_a5};//
+int flags[] 		={     0,     0,     0,     0,     0,     0};//反応した回数を数える
 int1 flag_ERR=false;
 
 void initializing(void){
