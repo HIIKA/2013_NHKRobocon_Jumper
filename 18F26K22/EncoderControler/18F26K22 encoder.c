@@ -2,9 +2,9 @@
 ロータリーエンコーダー制御部
 ロータリーエンコーダー入力①	:RB0 <-エンコーダー
 ロータリーエンコーダー入力②	:RB1 <-エンコーダー
-確認入力						:RC6 ->ジャンプ制御部 RA0
-カウント出力					:RC5 ->ジャンプ制御部 RA1
-停止出力						:RC4 ->ジャンプ制御部 RA2
+確認入力						:RB2 ->ジャンプ制御部 RA0
+カウント出力					:RB3 ->ジャンプ制御部 RA1
+停止出力						:RB4 ->ジャンプ制御部 RA2
 
 **************************************************/
 #include <18f26K22.h>
@@ -18,19 +18,24 @@
 
 #define ENCODER_A pin_b0
 #define ENCODER_B pin_b1
-#define CONFIRMIN	pin_c6
-#define COUNTOUT	pin_c5
-#define STOPTURN	pin_c4
+#define CONFIRMIN	pin_b2
+#define COUNTOUT	pin_b3
+#define STOPTURN	pin_b4
 #define COUNTS		300
 
 signed long g_count = 0;
-signed long count = 0;
+unsigned long count = 0;
 
 void initializing(void){
 	setup_oscillator(OSC_NORMAL | OSC_64MHZ | OSC_PLL_ON);
 	set_tris_a(0);
-	set_tris_b(0b00000011);
-	set_tris_c(0b01000000);
+	set_tris_b(0);
+	set_tris_c(0);
+	output_float(ENCODER_A);
+	output_float(ENCODER_B);
+	output_float(CONFIRMIN);
+	output_drive(COUNTOUT);
+	output_drive(STOPTURN);
 	output_a(0x00);
 	output_b(0);
 	output_c(0);
