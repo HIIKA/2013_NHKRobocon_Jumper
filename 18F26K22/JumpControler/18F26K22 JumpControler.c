@@ -1,8 +1,8 @@
 /************************************************
 ジャンプ制御部
-ロータリーエンコーダー入力ピン1	:RA0 ->encoder RC0 //左回転//正しい回転方向
-ロータリーエンコーダー入力ピン2	:RA1 ->encoder RC1 //右回転//逆
-ロータリーエンコーダー入力ピン3	:RA2 ->encoder RC2 //停止信号
+インタラプタ確認出力			:RA0 ->encoder RC6 
+カウント入力						:RA1 ->encoder RC5 
+ロータリーエンコーダー入力ピン3	:RA2 ->encoder RC4 //停止信号
 スイッチ入力ピン				:RA3
 ダミー入力ピン					:RA4
 フォトインタラプタ入力ピン		:RA5
@@ -44,8 +44,8 @@
 #define FINALLY			TRY_TAG_RESUME_LAST:
 
 #define bool int1
-#define LEFTTURN 		pin_a0//左回り入力
-#define RIGHTTURN 		pin_a1//右回り入力
+#define CONFIRMOUT 		pin_a0//確認出力
+#define COUNTIN 		pin_a1//カウント入力
 #define STOPTURN 		pin_a2//停止 入力
 #define SWITCHINPUT 	pin_a3//スイッチ入力
 #define DAMMYSWITCH		pin_a4//ダミースイッチ入力
@@ -117,7 +117,7 @@ void initializing(void){
 	output_b(0x00);
 	output_c(WISESTOP);//回転停止でスタート
 	//a bはtrisを設定しない
-	set_tris_a(0xff);//0b11111111
+	set_tris_a(0xfe);//0b11111110
 	set_tris_b(0x8d);//0b10001101
 	set_tris_c(0x80);//0b10000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
@@ -133,6 +133,7 @@ void initializing(void){
 	//起動待機処理
 	output_high(SEQUENCEMODE);//モーターとか動かないように
 	putc(WAITINGCHAR);
+	while( input(INITIALSWITCH));//離すの待機
 	while(!input(INITIALSWITCH));//押すの待機
 	putc(WAITEDCHAR);
 	while( input(INITIALSWITCH));//離すの待機
@@ -147,15 +148,17 @@ void change_c(int port){
 	delay_ms(DEADTIME);
 	output_c((input_c() & 0xf0) | port);
 }
-void Exception_ERR(long ms=1000){
+void Exception_ERR(void){
 	change_c(0);//出力なし
 	output_low (WINDING);
 	output_low (SEQUENCEMODE);
 	output_low (SPFORWARD);
 	putc(ERRCHAR);
+	output_high(ERRLED);
 	while(true){
-		output_toggle(ERRLED);//無限ループ
-		delay_ms(ms);
+		if(! input(MOVING) && input(INITIALSWITCH)){
+			reset_cpu();//復帰できるようになりました
+		}
 	}
 }
 
@@ -184,7 +187,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			THROW(END);//関数処理終了
 		}
 		
-		
+		output_high(CONFIRMOUT);//タイマーリセット命令
 		edgeflag=input(INTERRUPT);
 		change_c(CLOCKWISE);//巻き上げを行う
 		set_timer0(0);
@@ -222,22 +225,25 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			}else{
 				timing_bit(false);
 			}
-
+			
 			if(edgeflag!=input(INTERRUPT)){//インタラプタに変化があった時
 				edgeflag=input(INTERRUPT);//0なら切れ目から抜ける時、1なら切れ目に入る時
 				if(edgeflag){//切れ目に入ったら
 					if(gapflag){//切れ目探しのときはおしまい
 						break;//ジャンプしたとみなすとループ終了
 					}
-					if(timecounter >= 4){//動き出しから一定時間経ってたら
+					if(timecounter >= 3 && input(COUNTIN)){//動き出しから一定時間経って一定距離進んでいたら
 						jumpcounter++;//ジャンプしたとみなす
 						timingcounter=0;
+						output_high(CONFIRMOUT);//タイマーリセット命令
 						duty=0;//PWMreset
 						nonduty=50;
 					}
-				}else{//切れ目から抜けたら
-					
 				}
+			}
+			
+			if(!input(COUNTIN)){//回数入力がlowなら
+				output_low(CONFIRMOUT);//確認してない
 			}
 			
 		}while(jumpcounter<num);//多くなってたら
