@@ -44,6 +44,9 @@ CCP2			:RB5(CCP3)->LED
 #define PR2 49
 
 #define LEAN_DUTY 60//斜め移動のためのデューティ
+#define Set_Right_Duty Set_pwm3_duty
+#define Set_Left_Duty Set_pwm5_duty
+
 
 #define pin_forward pin_b3
 #define pin_back pin_b2
@@ -84,8 +87,8 @@ void initializing(){
 	Setup_timer_2(T2_DIV_BY_16,PR2,1);//20khz
 	set_timer0(TIMER0INTERVAL);
 	//PWM
-	Set_pwm5_duty(DetermineDuty(100));
-	Set_pwm3_duty(DetermineDuty(100));
+	Set_Left_duty(DetermineDuty(100));
+	Set_Right_duty(DetermineDuty(100));
 	//モーターの回転方向を決定する
 	if(input(change_pin1)){
 		FORWARD	=	FORWARD	| 0b01010000;
@@ -235,7 +238,7 @@ void mainloop(void){
 		if(input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){
 			if(recent==FORWARD|| !lean_rightflag|| lean_leftflag){
 				lean_rightflag=true;
-				Set_pwm3_duty(DetermineDuty(LEAN_DUTY));
+				Set_Right_duty(DetermineDuty(LEAN_DUTY));
 				lean_leftflag=false;
 			}
 		}
@@ -244,7 +247,7 @@ void mainloop(void){
 			if(recent==FORWARD|| lean_rightflag|| !lean_leftflag){
 				lean_rightflag=false;
 				lean_leftflag=true;
-				Set_pwm5_duty(DetermineDuty(LEAN_DUTY));
+				Set_Left_duty(DetermineDuty(LEAN_DUTY));
 			}
 		}
 		//後進+右
@@ -252,14 +255,14 @@ void mainloop(void){
 			if(recent==BACK|| lean_rightflag|| !lean_leftflag){
 				lean_rightflag=false;
 				lean_leftflag=true;
-				Set_pwm5_duty(DetermineDuty(LEAN_DUTY));
+				Set_Left_duty(DetermineDuty(LEAN_DUTY));
 			}
 		}
 		//後進+左
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&input(pin_left)){
 			if(recent==BACK|| !lean_rightflag|| lean_leftflag){
 				lean_rightflag=true;
-				Set_pwm3_duty(DetermineDuty(LEAN_DUTY));
+				Set_Right_duty(DetermineDuty(LEAN_DUTY));
 				lean_leftflag=false;
 			}
 		}
@@ -273,31 +276,31 @@ void mainloop(void){
 		//発信PWM制御
 		if(DeparturePwmCounter == 0){
 			if(!lean_leftflag){
-				Set_pwm5_duty(DetermineDuty(60));
+				Set_Left_duty(DetermineDuty(60));
 			}
 			if(!lean_rightflag){
-				Set_pwm3_duty(DetermineDuty(60));
+				Set_Right_duty(DetermineDuty(60));
 			}
 		}else if(DeparturePwmCounter == 5000L){
 			if(!lean_leftflag){
-				Set_pwm5_duty(DetermineDuty(75));
+				Set_Left_duty(DetermineDuty(75));
 			}
 			if(!lean_rightflag){
-				Set_pwm3_duty(DetermineDuty(75));
+				Set_Right_duty(DetermineDuty(75));
 			}
 		}else if(DeparturePwmCounter == 10000L){
 			if(!lean_leftflag){
-			Set_pwm5_duty(DetermineDuty(85));
+			Set_Left_duty(DetermineDuty(85));
 			}
 			if(!lean_rightflag){
-				Set_pwm3_duty(DetermineDuty(85));
+				Set_Right_duty(DetermineDuty(85));
 			}
 		}else if(DeparturePwmCounter == 15000L){
 			if(!lean_leftflag){
-				Set_pwm5_duty(DetermineDuty(100));
+				Set_Left_duty(DetermineDuty(100));
 			}
 			if(!lean_rightflag){
-				Set_pwm3_duty(DetermineDuty(100));
+				Set_Right_duty(DetermineDuty(100));
 			}
 		}
 		
@@ -321,8 +324,8 @@ void mainloop(void){
 		output_c(0);//dead time
 		interval=CHANGEINTERVAL;//1ms変化待ち
 		recent=STOP;//停止
-		Set_pwm5_duty(DetermineDuty(100));
-		Set_pwm3_duty(DetermineDuty(100));
+		Set_Left_duty(DetermineDuty(100));
+		Set_Right_duty(DetermineDuty(100));
 	}CATCH(NONSIG){//Exception_signal_none
 		if(recent!=STOP){
 			output_c(0);//dead time
