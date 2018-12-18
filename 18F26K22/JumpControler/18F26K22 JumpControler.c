@@ -174,20 +174,20 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 				//ストール検出
 				if(input(STOPTURN)){
 					stopcounter++;//インクリメント
-					if(stopcounter>=6){//1.5秒止まっていたらストールの疑い
+					if(stopcounter>=4){//1.0秒止まっていたらストールの疑い
 						THROW(ERR);//ERR Throw
 					}
 				}else{
 					stopcounter=0;//停止信号が来ていなければカウンタリセット;
 				}
 				//PWM処理
-				if(nonduty > 0){//まだPWM中だったら
+				if(nonduty > 5){//まだPWM中だったら
 					duty+=5;//Dutyの比を増やす
 					nonduty-=5;//減らす
 				}
 			}
 			
-			if(nonduty > 0){//まだPWMが終わってなければ
+			if(nonduty > 5){//まだPWMが終わってなければ
 				output_c((input_c() & 0xf0) | 0);//pwm
 				delay_us(nonduty);
 			}
@@ -195,7 +195,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			delay_us(duty);
 			
 			//タイミングをとる
-			if(timingcounter >= 7){
+			if(timingcounter >= 2){
 				timing_bit(true);
 			}else{
 				timing_bit(false);
@@ -207,10 +207,14 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 					if(gapflag){//切れ目探しのときはおしまい
 						break;//ジャンプしたとみなすとループ終了
 					}
-					if(timecounter >= 7){//一定時間経ってたら
+					if(timecounter >= 4){//動き出しから一定時間経ってたら
 						jumpcounter++;//ジャンプしたとみなす
 						timingcounter=0;
+						duty=10;//PWMreset
+						nonduty=40;
 					}
+				}else{//切れ目から抜けたら
+					
 				}
 			}
 			
