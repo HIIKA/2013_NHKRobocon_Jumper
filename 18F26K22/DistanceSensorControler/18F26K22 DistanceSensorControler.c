@@ -125,12 +125,12 @@ int interval(void)
 		{
 			servivecounter++;//壊れていないものをカウントする
 			
-			//ここで正常ならスルー
+			//現在稼働中のpinではない時ここで正常なら次へ
 			if(operating!=0 && operating!=inputpins[i])
 			{
 				output_low(outputpins[i]);
 				flags[i]=0;
-				continue;//現在稼働中のpinではない時
+				continue;
 			}
 			
 			//特別動作中はセンサーはすべて作動しない
@@ -150,16 +150,20 @@ int interval(void)
 			
 			if(distance < DETECTDISTANCE)//指定距離内の時
 			{
-				if(flags[i]!=uINT_MAX)flags[i]++;//インクリメント（桁あふれ注意）
+				flags[i]=(flags[i]<3) ? flags[i]+1:flags[i];//インクリメント
 			}else{
-				output_low(outputpins[i]);
-				operating=0;//どれも稼働してない
-				flags[i]=0;
+				flags[i]=(flags[i]>0) ? flags[i]-1:flags[i];//減らす
 			}
-			if(flags[i]>=3){
+			
+			if(operating==0 && flags[i]==3){//動作中のセンサがなく、3になったら
 				output_high(outputpins[i]);
 				operating=inputpins[i];//現在稼働中を指定
 			}
+			if(operating==inputpins[i] && flags[i]==0){//動作中のセンサが0になってしまったら
+				output_low(outputpins[i]);
+				operating=0;//どれも稼働してない
+			}
+			
 		}
 		else if(SSW_DELAY+100 <= distance){
 			ExceptionDistanceERR();
