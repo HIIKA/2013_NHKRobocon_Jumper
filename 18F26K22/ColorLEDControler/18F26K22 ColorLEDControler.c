@@ -1,13 +1,13 @@
 /*
 カラーLED制御部
-出力1R			:RB0
-出力1G			:RB1
+出力1G			:RB0
+出力1R			:RB1
 出力1B			:RB2
-出力2R			:RB3
-出力2G			:RB4
+出力2G			:RB3
+出力2R			:RB4
 出力2B			:RB5
-出力3R			:RA0
-出力3G			:RA1
+出力3G			:RA0
+出力3R			:RA1
 出力3B			:RA2
 信号入力ピン1		:RC0
 信号入力ピン2		:RC1
@@ -47,7 +47,12 @@ CCPを使わないことにした
 #define INFCLEARCHAR	'h'//無限回ジャンプの時の信号CLEAR
 #define YELLOWCHAR		'I'//黄色に光る
 #define ENDYELLOWCHAR	'i'//黄色消える
+#define COUNT1			'j'
+#define COUNT2			'k'
+#define COUNT3			'l'
+#define COUNTEND		'm'
 
+unsigned int jumpingcount=0;
 bool switchflag=0;
 bool spflag=0;
 bool waitflag=0;
@@ -57,14 +62,14 @@ bool signalflag=0;
 bool infmode=0;
 bool yellowflag=0;
 
-#define OUT1R pin_b0
-#define OUT1G pin_b1
+#define OUT1G pin_b0
+#define OUT1R pin_b1
 #define OUT1B pin_b2
-#define OUT2R pin_b3
-#define OUT2G pin_b4
+#define OUT2G pin_b3
+#define OUT2R pin_b4
 #define OUT2B pin_b5
-#define OUT3R pin_a0
-#define OUT3G pin_a1
+#define OUT3G pin_a0
+#define OUT3R pin_a1
 #define OUT3B pin_a2
 
 #define MOVING pin_c0
@@ -141,6 +146,22 @@ void set_color(void){
 	}
 	if(input(MOVING)){
 		CreateLEDColorALL(1, 0, 1);//purple
+		return;
+	}
+	if(jumpingcount==1){
+		CreateLEDColor(1,1,1,1);//yellow
+		CreateLEDColor(2,1,1,1);//yellow
+		CreateLEDColor(3,1,1,0);//yellow
+		return;
+	}else if(jumpingcount==2){
+		CreateLEDColor(1,1,1,1);//yellow
+		CreateLEDColor(2,1,1,0);//yellow
+		CreateLEDColor(3,1,1,0);//yellow
+		return;
+	}else if(jumpingcount==3){
+		CreateLEDColor(1,1,1,0);//yellow
+		CreateLEDColor(2,1,1,0);//yellow
+		CreateLEDColor(3,1,1,0);//yellow
 		return;
 	}
 	if(yellowflag){
@@ -227,6 +248,18 @@ void interrupt_rcv(void){
 		break;
 	case ENDYELLOWCHAR:
 		yellowflag=false;
+		break;
+	case COUNT1:
+		jumpingcount=1;
+		break;
+	case COUNT2:
+		jumpingcount=2;
+		break;
+	case COUNT3:
+		jumpingcount=3;
+		break;
+	case COUNTEND:
+		jumpingcount=0;
 		break;
 	case CLEARCHAR:
 		switchflag=false;
