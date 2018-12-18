@@ -266,7 +266,6 @@ int Sequence_Winding(unsigned long num=1){//0ÇÃéûÇÕä™Ç´è„Ç∞ÇÃÇ›çsÇ§
 }
 
 void Sequence_Onejump(void){
-	int i;
 	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
 	output_high(HEYOUT);
@@ -289,7 +288,6 @@ void Sequence_Onejump(void){
 }
 
 void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
-	int i;
 	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
 	output_high(HEYOUT);
@@ -335,13 +333,16 @@ void Sequence_Auto2j(void){
 	output_high(SEQUENCEMODE);
 	putc(FORWARDCHAR);
 	output_high(SPFORWARD);
-	delay_ms(1400);
-	timing_bit(false);
-	delay_ms(400);
-	timing_bit(true);
-	delay_ms(200);//total=2000
-	putc(ENDFORWARDCHAR);
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNT2);
+	delay_ms(500);
+	putc(COUNT3);
+	delay_ms(500);
+	putc(COUNTEND);//total=2000
 	output_low(SPFORWARD);
+	putc(ENDFORWARDCHAR);
 	output_high(JEJEJEOUT);
 		//ÉWÉÉÉìÉv
 		Sequence_Winding(2);
