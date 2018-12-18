@@ -68,7 +68,14 @@
 
 
 
+void timing_bit(bool bits){
+	output_bit(SWITCHLED,bits);
+	output_bit(SPECIALLED,bits);
+	output_bit(ERRLED,bits);
+}
+
 void initializing(void){
+	bool delayflag;//ちかちかにのみ使う
 	//ｵｼﾚｰﾀ設定
 	setup_oscillator(OSC_NORMAL | OSC_64MHZ | OSC_PLL_ON);
 	//TRIS設定
@@ -79,6 +86,18 @@ void initializing(void){
 	set_tris_b(0x03);//0b00000011
 	set_tris_c(0xC0);//0b11000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
+
+	//起動待機処理
+	output_high(SEQUENCEMODE);//モーターとか動かないように
+	while(!input(TACTSWITCH)){//押すの待機
+		timing_bit(++delayflag);//ちかちか
+		delay_ms(200);
+	}
+	timing_bit(false);
+	while( input(TACTSWITCH));//離すの待機
+	output_low (SEQUENCEMODE);//起動待機終了
+	while(input(MOVING)){}//まさか動いてねぇよな？
+	//起動待機処理終了
 }
 
 void change_c(int port){
@@ -97,10 +116,12 @@ void Exception_ERR(long ms=1000){
 	}
 }
 
+
 //巻き上げ処理、これでジャンプも行う
 int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 	unsigned int timecounter =0;//15625カウント(0.25秒)で1インクリメント
 	unsigned long jumpcounter =0;//ジャンプの回数を数える。
+	unsigned int timingcounter=0;//タイミングカウンタ、timecounterとの違いはいちいち飛ぶたびに初期化される
 	bool edgeflag ;
 	int duty=20;
 	int nonduty=30;
@@ -123,6 +144,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			if(get_timer0()>=15625L){//指定回数で
 				set_timer0(0);//タイマリセットして
 				if(timecounter<uINT_MAX)timecounter++;//限界行ったら数えるのあきらめる
+				timingcounter++;//インクリメント
 				if(nonduty > 0){//まだPWM中だったら
 					duty+=5;//Dutyの比を増やす
 					nonduty-=5;//減らす
@@ -140,16 +162,24 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			if(timecounter >= 7  && input(STOPTURN) ){//約1.75秒後に停止信号が来ていたらエラー
 				THROW(ERR);//ERR Throw
 			}
-			
+			//タイミングをとる
+			if(timingcounter >= 7){
+				timing_bit(true);
+			}else{
+				timing_bit(false);
+			}
+
 			if(edgeflag!=input(INTERRUPT)){//インタラプタに変化があった時
 				edgeflag=input(INTERRUPT);//0なら切れ目から抜ける時、1なら切れ目に入る時
 				if(num==0){//切れ目探しのときはラチェット入る前のずれを考慮した時間を入れない
 					if(edgeflag){//切れ目に入ったら
 						jumpcounter++;//ジャンプしたとみなすとループ終了
+						timingcounter=0;
 					}
 				}else{
 					if(edgeflag&&timecounter >= 7){//動き出した後切れ目に入ったら
 						jumpcounter++;//ジャンプしたとみなす
+						timingcounter=0;
 					}
 				}
 			}
@@ -173,11 +203,15 @@ void Sequence_Onejump(){
 	output_high(SEQUENCEMODE);
 	//前進
 	output_high(SPFORWARD);
-	delay_ms(2000);
-	output_low (SPFORWARD);
+	delay_ms(1000);
+	timing_bit(false);
+	delay_ms(1000);
+	output_low (SPFORWARD);//二秒で停止
+	timing_bit(true);
+	delay_ms(200);
 	
-	//ジャンプ
-	Sequence_Winding(1);
+		//ジャンプ
+		Sequence_Winding(1);
 	
 	//前進
 	output_high(SPFORWARD);
@@ -194,9 +228,13 @@ void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
 	output_high(SEQUENCEMODE);
 	//前進
 	output_high(SPFORWARD);
-	delay_ms(2000);
-	output_low (SPFORWARD);
-
+	delay_ms(1000);
+	timing_bit(false);
+	delay_ms(1000);
+	output_low (SPFORWARD);//2秒で停止
+	timing_bit(true);
+	delay_ms(200);
+	
 		//ジャンプ
 		Sequence_Winding(cont);//無限の時はuLONG_MAX
 	
@@ -208,31 +246,32 @@ void Sequence_Twojump(){
 	output_high(SWITCHLED);
 	output_high(SEQUENCEMODE);
 	//縄が来るの待機
-	delay_ms(600);
+	delay_ms(200);
+	timing_bit(false);
+	delay_ms(400);
+	timing_bit(true);
+	delay_ms(200);//total=800
 	
-	//ジャンプ
-	Sequence_Winding(2);
+		//ジャンプ
+		Sequence_Winding(2);
 	
+	output_low (SWITCHLED);
 	//着地待機
 	delay_ms(400);
-	output_low (SWITCHLED);
 	output_low (SEQUENCEMODE);
 }
 int main(void)
 {
 	int duty;
 	int nonduty;
-	bool movingflag;
+	bool movingflag=true;//エッジ検出のみに使う
 	int timecounter=0;
 	delay_ms(100);
 	initializing();
-	
-	while(input(MOVING)){}
-	
+
 	//起動時の巻き上げ
 	Sequence_Winding(0);
 	
-	movingflag=input(MOVING);
 	while(true)
 	{
 		
@@ -287,7 +326,7 @@ int main(void)
 			if(timecounter!=uINT_MAX)timecounter++;
 		}
 		
-		if((!input(MOVING))&& timecounter >= 2 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
+		if((!input(MOVING))&& timecounter >= 1 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
 			output_high(JEJEJEOUT);
 			Sequence_Twojump();
 			output_low (JEJEJEOUT);
