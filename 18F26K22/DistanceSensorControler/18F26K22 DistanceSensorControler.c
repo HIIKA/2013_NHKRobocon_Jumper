@@ -27,12 +27,12 @@ RB0=>LED1//なんかつながってないセンサーあるよ！
 
 #define SSW_DELAY 800				//求める最大の距離[mm]
 #define INTERVALTIME 0xF8AD
-#define DETECTDISTANCE 250 //反応距離
+#define DETECTDISTANCE 150 //反応距離
 #define ERR_LED pin_b0//エラー出力用
 #define SPECIALPIN pin_b7//特別動作
 //出力ピンと入力ピン（グローバル変数）
-int outputpins[]	={pin_b6,pin_b5};//,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4
-int inputpins[]		={pin_a0,pin_a1};//,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3
+long outputpins[]	={pin_b5,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4};//pin_b6,
+long inputpins[]	={pin_a1,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3};//pin_a0,
 int1 flag_ERR=false;
 
 void initializing(void){
@@ -64,7 +64,7 @@ void initializing(void){
 SSW_DELAY+1 ～ SSW_DELAY+99		:測定範囲外
 SSW_DELAY+100 ～				:センサー反応せず
 */
-long check_ssw(int ssw_sig){
+long check_ssw(long ssw_sig){
 	long nagasa;
 	output_drive(ssw_sig);		//SSWをつないだピンを出力に設定
 	//ssw_tris=ssw_tris&~ssw_port;
@@ -79,7 +79,7 @@ long check_ssw(int ssw_sig){
 	set_timer3(0);
 	while(!input(ssw_sig))
 	{
-		if(get_timer3() > (760*2))//規格では750us後に値を返してくるはず
+		if(get_timer3() > (800*2))//規格では750us後に値を返してくるはず
 		{
 			return SSW_DELAY + 200;//センサー反応しなかった
 		}
@@ -111,8 +111,8 @@ int interval(void)
 {
 	long distance;
 	int i;
-	static int operating=0;
-
+	static long operating=0;
+	int servivecounter=0;
 	
 	for(i=0; i < sizeof(inputpins)/sizeof(inputpins[0]); ++i)
 	{
@@ -121,6 +121,8 @@ int interval(void)
 		//壊れてないか点検
 		if(distance < SSW_DELAY+100)//正常範囲の時(overを含む)
 		{
+			servivecounter++;//壊れていないものをカウントする
+			
 			//ここで正常ならスルー
 			if(operating!=0 && operating!=inputpins[i])
 			{
@@ -154,6 +156,11 @@ int interval(void)
 		else if(SSW_DELAY+100 <= distance){
 			ExceptionDistanceERR();
 		}
+	}
+	
+	if(servivecounter==(sizeof(inputpins)/sizeof(inputpins[0]) )){//全部生きているっぽかったら
+		output_low (ERR_LED);
+		flag_err=false;//エラーなんてなかった
 	}
 	set_timer0(INTERVALTIME);
 	return 0;
