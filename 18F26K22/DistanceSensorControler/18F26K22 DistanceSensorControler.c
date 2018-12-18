@@ -42,7 +42,7 @@ unsigned datasize trans_data=0;//送信するデータ各ビットが動作状況を表す
 unsigned datasize before_data=0;//前回送信したときの状況
 
 /*
-int1 out_forward=0;
+int1 output_low(out_forward);
 int1 out_back;
 int1 out_right;
 int1 out_left;
@@ -60,6 +60,7 @@ int1 out_infjump;
 #define is_left()		bit_test(trans_data,3)
 #define is_onejump()	bit_test(trans_data,4)
 #define is_infjump()	bit_test(trans_data,5)
+#define is_auto2j()		bit_test(trans_data,6)
 
 #define pin_forward pin_a0
 #define pin_back pin_a1
@@ -69,13 +70,12 @@ int1 out_infjump;
 #define pin_infjump pin_a5
 #define pin_auto2j pin_c3
 
-#byte port_b = getenv("SFR:PORTB")
-#bit out_forward =	port_b.2//getenv("BIT:RB2")
-#bit out_back =	port_b.3//getenv("BIT:RB3")
-#bit out_right =	port_b.4//getenv("BIT:RB4")
-#bit out_left =	port_b.5//getenv("BIT:RB5")
-#bit out_onejump =	port_b.6//getenv("BIT:RB6")
-#bit out_infjump =	port_b.1//getenv("BIT:RB1")
+#define out_forward pin_b2//getenv("BIT:RB2")
+#define out_back pin_b3//getenv("BIT:RB3")
+#define out_right pin_b4//getenv("BIT:RB4")
+#define out_left pin_b5//getenv("BIT:RB5")
+#define out_onejump pin_b1//getenv("BIT:RB6")
+#define out_infjump pin_b6//getenv("BIT:RB1")
 
 
 
@@ -121,121 +121,129 @@ void data_transport(void){//現在の状況を送信する
 		case pin_forward:
 			if(bit_test(trans_data,i)){//前進時に
 				if(is_right()){
-					out_forward=1;
-					out_right=1;
-					out_left=0;
-					out_back=0;
+					output_high(out_forward);
+					output_high(out_right);
+					output_low(out_left);
+					output_low(out_back);
 				}else if(is_left()){
-					out_forward=1;
-					out_right=0;
-					out_left=1;
-					out_back=0;
+					output_high(out_forward);
+					output_low(out_right);
+					output_high(out_left);
+					output_low(out_back);
 				}else{//前進でも後進でもないとき
-					out_forward=1;
-					out_right=0;
-					out_left=0;
-					out_back=0;
+					output_high(out_forward);
+					output_low(out_right);
+					output_low(out_left);
+					output_low(out_back);
 				}
+			}else{
+				output_low(out_forward);
 			}
 			break;
 			//*******************************************************
 		case pin_back:
 			if(bit_test(trans_data,i)){
 				if(is_right()){
-					out_forward=0;
-					out_right=0;
-					out_left=1;
-					out_back=1;
+					output_low(out_forward);
+					output_low(out_right);
+					output_high(out_left);
+					output_high(out_back);
 				}else if(is_left()){
-					out_forward=0;
-					out_right=1;
-					out_left=0;
-					out_back=1;
+					output_low(out_forward);
+					output_high(out_right);
+					output_low(out_left);
+					output_high(out_back);
 				}else{//前進でも後進でもないとき
-					out_forward=0;
-					out_right=0;
-					out_left=0;
-					out_back=1;
+					output_low(out_forward);
+					output_low(out_right);
+					output_low(out_left);
+					output_high(out_back);
 				}
+			}else{
+				output_low(out_back);
 			}
 			break;
 			//*******************************************************
 		case pin_right:
 			if(bit_test(trans_data,i)){
 				if(is_forward()){
-					out_forward=1;
-					out_right=1;
-					out_left=0;
-					out_back=0;
+					output_high(out_forward);
+					output_high(out_right);
+					output_low(out_left);
+					output_low(out_back);
 				}else if(is_back()){
-					out_forward=0;
-					out_right=0;
-					out_left=1;
-					out_back=1;
+					output_low(out_forward);
+					output_low(out_right);
+					output_high(out_left);
+					output_high(out_back);
 				}else{//前進でも後進でもないとき
-					out_forward=0;
-					out_right=1;
-					out_left=0;
-					out_back=0;
+					output_low(out_forward);
+					output_high(out_right);
+					output_low(out_left);
+					output_low(out_back);
 				}
+			}else{
+				output_low(out_right);
 			}
 			break;
 			//*******************************************************
 		case pin_left:
 			if(bit_test(trans_data,i)){
 				if(is_forward()){
-					out_forward=1;
-					out_right=0;
-					out_left=1;
-					out_back=0;
+					output_high(out_forward);
+					output_low(out_right);
+					output_high(out_left);
+					output_low(out_back);
 				}else if(is_back()){
-					out_forward=0;
-					out_right=1;
-					out_left=0;
-					out_back=1;
+					output_low(out_forward);
+					output_high(out_right);
+					output_low(out_left);
+					output_high(out_back);
 				}else{//前進でも後進でもないとき
-					out_forward=0;
-					out_right=0;
-					out_left=1;
-					out_back=0;
+					output_low(out_forward);
+					output_low(out_right);
+					output_high(out_left);
+					output_low(out_back);
 				}
+			}else{
+				output_low(out_left);
 			}
 			break;
 			//*******************************************************
 		case pin_onejump 	:
 			if(bit_test(trans_data,i) && !bit_test(before_data,i)){
-				out_onejump=1;
-				out_infjump=0;
+				output_high(out_onejump);
+				output_low(out_infjump);
 			}
 			break;
 			//*******************************************************
 		case pin_infjump 	:
 			if(bit_test(trans_data,i) && !bit_test(before_data,i)){
-				out_onejump=0;
-				out_infjump=1;
+				output_low(out_onejump);
+				output_high(out_infjump);
 			}
 			break;
 			//*******************************************************
 		case pin_auto2j 	:
 			if(bit_test(trans_data,i) && !bit_test(before_data,i)){
-				out_onejump=1;
-				out_infjump=1;
+				output_high(out_onejump);
+				output_high(out_infjump);
 			}
 			break;
 		}
 	}
 	
-	if(! is_onejump() && ! is_infjump()){
-		out_onejump=0;
-		out_infjump=0;
+	if(! is_onejump() && ! is_infjump() && ! is_auto2j() ){
+		output_low(out_onejump);
+		output_low(out_infjump);
 	}
 	
 	//とまってるとき
 	if(!is_right()&&!is_left()&&!is_forward()&&!is_back()){
-		out_forward=0;
-		out_right=0;
-		out_left=0;
-		out_back=0;
+		output_low(out_forward);
+		output_low(out_right);
+		output_low(out_left);
+		output_low(out_back);
 	}
 	
 	before_data = trans_data;
@@ -314,7 +322,7 @@ void check_sensor(void){//1.5秒に1回呼ばれたい(願望)
 int1 check_continue(unsigned int num){
 	
 	//移動中はジャンプ関係のセンサを停止
-	if(out_forward||out_back||out_right||out_left){
+	if(input(out_forward)||input(out_back)||input(out_right)||input(out_left)){
 		if(inputpins[num]==pin_onejump
 		 ||inputpins[num]==pin_infjump
 		 ||inputpins[num]==pin_auto2j){//ジャンプ関係
@@ -372,6 +380,31 @@ int1 check_continue(unsigned int num){
 			return (1);
 		}
 	}
+	//特別動作中はほかのピン虫
+	if(input(out_onejump) && !input(out_infjump)){
+		if(inputpins[num]==pin_infjump||inputpins[num]==pin_auto2j){
+			flags[num]=0;
+			bit_clear(trans_data,num);
+			return (1);
+		}
+	}
+	//特別動作中はほかのピン虫
+	if(!input(out_onejump) && input(out_infjump)){
+		if(inputpins[num]==pin_onejump||inputpins[num]==pin_auto2j){
+			flags[num]=0;
+			bit_clear(trans_data,num);
+			return (1);
+		}
+	}
+	//特別動作中はほかのピン虫
+	if(input(out_onejump) && input(out_infjump)){
+		if(inputpins[num]==pin_onejump||inputpins[num]==pin_infjump){
+			flags[num]=0;
+			bit_clear(trans_data,num);
+			return (1);
+		}
+	}
+	
 	
 	return (0);
 }
