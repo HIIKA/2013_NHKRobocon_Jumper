@@ -90,6 +90,7 @@ void initializing(void){
 	printf("start");
 }
 
+#inline
 void CreateColor(unsigned int red,unsigned int green,unsigned int blue){
 	if(red	>100)red	=100;
 	if(green>100)green	=100;
@@ -97,6 +98,51 @@ void CreateColor(unsigned int red,unsigned int green,unsigned int blue){
 	Set_RED_duty	(DetermineDuty(red));
 	Set_GREEN_duty	(DetermineDuty(green));
 	Set_BLUE_duty	(DetermineDuty(blue));
+}
+
+
+#INT_TIMER0
+void timer0(void){
+	set_timer0(TIMER0INTERVAL);
+	if(errflag){
+		CreateColor(100,0,0);//red
+		return;
+	}
+	if(input(MOTORERR)){
+		CreateColor(100,10,10);//red
+		return;
+	}
+	if(input(SENSORERR)){
+		CreateColor(100,20,20);//red
+		return;
+	}
+	if(input(MOVING)){
+		CreateColor(49, 15, 80);//purple
+		return;
+	}
+	if(signalflag){
+		CreateColor(100, 65, 0);//Orange
+		return;
+	}
+	if(forwardflag){
+		CreateColor(49, 15, 80);//purple
+		return;
+	}
+	if(spflag){
+		CreateColor(0, 100, 0);//Green
+		return;
+	}
+	if(switchflag){
+		CreateColor(10, 100, 10);//LightGreen
+		return;
+	}
+	if(waitflag){
+		CreateColor(100,100,100);//white
+		return;
+	}
+
+	//何も信号がなければ適当に光らせる
+	CreateColor(0,0, 100);
 }
 
 //受信時の処理
@@ -147,52 +193,10 @@ void interrupt_rcv(void){
 		errflag=false;
 		break;
 	}
+	timer0();//即座に変更を反応させるためにここで呼び出しておく
 	
 }
 
-#INT_TIMER0
-void timer0(void){
-	set_timer0(TIMER0INTERVAL);
-	if(errflag){
-		CreateColor(100,0,0);//red
-		return;
-	}
-	if(input(MOTORERR)){
-		CreateColor(100,10,10);//red
-		return;
-	}
-	if(input(SENSORERR)){
-		CreateColor(100,20,20);//red
-		return;
-	}
-	if(input(MOVING)){
-		CreateColor(49, 15, 80);//purple
-		return;
-	}
-	if(signalflag){
-		CreateColor(100, 65, 0);//Orange
-		return;
-	}
-	if(forwardflag){
-		CreateColor(49, 15, 80);//purple
-		return;
-	}
-	if(spflag){
-		CreateColor(0, 100, 0);//Green
-		return;
-	}
-	if(switchflag){
-		CreateColor(10, 100, 10);//LightGreen
-		return;
-	}
-	if(waitflag){
-		CreateColor(100,100,100);//white
-		return;
-	}
-
-	//何も信号がなければ適当に光らせる
-	CreateColor(0,0, 100);
-}
 
 void main(void)
 {
