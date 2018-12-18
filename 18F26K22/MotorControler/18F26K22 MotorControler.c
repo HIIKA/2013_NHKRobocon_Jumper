@@ -187,7 +187,7 @@ void mainloop(void){
 			THROW(WIND);//関数の終了部へ飛ぶ
 		}
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&!input(pin_left)){//forward
-			if(recent!=FORWARD){
+			if(recent==STOP){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -195,12 +195,12 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else{
+			}else if(recent==FORWARD){
 				output_c(FORWARD);
 			}
 		}
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&!input(pin_left)){//back
-			if(recent!=BACK){
+			if(recent==STOP){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -208,12 +208,12 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else{
+			}else if(recent==BACK){
 				output_c(BACK);
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){//right
-			if(recent!=RIGHT){
+			if(recent==STOP){//停止状態でのみ旋回を受け付ける
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -221,12 +221,12 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else{
+			}else if(recent==RIGHT){
 				output_c(RIGHT);
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){//left
-			if(recent!=LEFT){
+			if(recent==STOP){//停止状態でのみ旋回を受け付ける
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -234,7 +234,7 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else{
+			}else if(recent==LEFT){
 				output_c(LEFT);
 			}
 		}
@@ -253,7 +253,6 @@ void mainloop(void){
 			}else{
 				output_c(FORWARD);
 			}
-			output_c(0xff);
 		}
 		//前進+左
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){
@@ -312,29 +311,37 @@ void mainloop(void){
 
 		//発信PWM制御
 		if(DeparturePwmCounter == 0){
-			if(lean_rightflag){
-				Set_pwm3_duty(0);
-				Set_pwm5_duty(100);
-				DeparturePwmCounter=16000L;
-			}else{
-				Set_pwm3_duty(DetermineDuty(60));
-			}
 			if(lean_leftflag){
-				Set_pwm3_duty(100);
 				Set_pwm5_duty(0);
-				DeparturePwmCounter=16000L;
 			}else{
 				Set_pwm5_duty(DetermineDuty(60));
 			}
+			if(lean_rightflag){
+				Set_pwm3_duty(0);
+			}else{
+				Set_pwm3_duty(DetermineDuty(60));
+			}
 		}else if(DeparturePwmCounter == 5000L){
-			Set_pwm5_duty(DetermineDuty(75));
-			Set_pwm3_duty(DetermineDuty(75));
+			if(!lean_leftflag){
+				Set_pwm5_duty(DetermineDuty(75));
+			}
+			if(!lean_rightflag){
+				Set_pwm3_duty(DetermineDuty(75));
+			}
 		}else if(DeparturePwmCounter == 10000L){
+			if(!lean_leftflag){
 			Set_pwm5_duty(DetermineDuty(85));
-			Set_pwm3_duty(DetermineDuty(85));
+			}
+			if(!lean_rightflag){
+				Set_pwm3_duty(DetermineDuty(85));
+			}
 		}else if(DeparturePwmCounter == 15000L){
-			Set_pwm5_duty(DetermineDuty(100));
-			Set_pwm3_duty(DetermineDuty(100));
+			if(!lean_leftflag){
+				Set_pwm5_duty(DetermineDuty(100));
+			}
+			if(!lean_rightflag){
+				Set_pwm3_duty(DetermineDuty(100));
+			}
 		}
 		
 		DeparturePwmCounter++;
