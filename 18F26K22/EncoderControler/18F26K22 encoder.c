@@ -32,7 +32,7 @@ LED一つ当たり25カウント
 #define SELECTPIN1 pin_a0
 #define SELECTPIN2 pin_a1
 #define COUNTS		300
-#define ROULETTE_DIRECTION	true//ルーレットの回る方向
+#define ROULETTE_DIRECTION	false//ルーレットの回る方向
 
 signed long g_count = 0;
 signed long count = 0;
