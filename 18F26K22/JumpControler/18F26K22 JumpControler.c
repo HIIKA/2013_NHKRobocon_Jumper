@@ -6,8 +6,9 @@
 スイッチ入力ピン				:RA3
 ダミー入力ピン					:RA4
 フォトインタラプタ入力ピン		:RA5
-無限回モード入力ピン			:RA6(RA7)
-タクトスイッチ入力			:RB0 
+起動タクト	スイッチピン		:RA6
+無限回モード入力ピン			:RA7
+解放タクトスイッチ入力			:RB0 
 エラーLED			:RB1 
 1回ジャンプ入力		:RB2 
 無限ジャンプ入力ピン		:RB3 
@@ -49,8 +50,9 @@
 #define SWITCHINPUT 	pin_a3//スイッチ入力
 #define DAMMYSWITCH		pin_a4//ダミースイッチ入力
 #define INTERRUPT	 	pin_a5//フォトインタラプタ入力
-#define INFINITYMODE	pin_a6//無限回ジャンプの時にHigh
-#define TACTSWITCH		pin_b0//タクトスイッチで性回転の微調整
+#define INITIALSWITCH	pin_a6//起動するときに押すスイッチ
+#define INFINITYMODE	pin_a7//無限回ジャンプの時にHigh
+#define TACTSWITCH		pin_b0//タクトスイッチで性回転する
 #define ERRLED 			pin_b1//エラーが起こると光る
 #define ONEJUMP 		pin_b2//一回ジャンプ（センサー制御部から入力）
 #define INFINITYJUMP 	pin_b3//複数回ジャンプ（センサー制御部から入力）
@@ -131,9 +133,9 @@ void initializing(void){
 	//起動待機処理
 	output_high(SEQUENCEMODE);//モーターとか動かないように
 	putc(WAITINGCHAR);
-	while(!input(TACTSWITCH));//押すの待機
+	while(!input(INITIALSWITCH));//押すの待機
 	putc(WAITEDCHAR);
-	while( input(TACTSWITCH));//離すの待機
+	while( input(INITIALSWITCH));//離すの待機
 	delay_ms(300);
 	output_low (SEQUENCEMODE);//起動待機終了
 	while(input(MOVING)){}//まさか動いてねぇよな？
@@ -253,7 +255,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 	}
 }
 
-void Sequence_Onejump(){
+void Sequence_Onejump(void){
 	int i;
 	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
@@ -280,6 +282,7 @@ void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
 	int i;
 	putc(SPBEGINCHAR);
 	output_high(SEQUENCEMODE);
+	output_high(HEYOUT);
 	
 	for(i=0;i<2;i++){//2秒間点滅
 		yellow_blink(true);
@@ -293,10 +296,11 @@ void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
 		Sequence_Winding(cont);//無限の時はuLONG_MAX
 	
 	putc(SPENDCHAR);
+	output_low (HEYOUT);
 	output_low (SEQUENCEMODE);
 }
 
-void Sequence_Twojump(){
+void Sequence_Twojump(void){
 	putc(SWITCHCHAR);
 	output_high(SEQUENCEMODE);
 	//縄が来るの待機
@@ -314,10 +318,32 @@ void Sequence_Twojump(){
 	delay_ms(400);
 	output_low (SEQUENCEMODE);
 }
+void Sequence_ManualTurn(void){
+	//duty初期化
+	int duty=20;
+	int nonduty=30;
+	//巻き上げ開始
+	output_high(WINDING);
+	change_c(CLOCKWISE);
+	set_timer0(0);
+	while(input(TACTSWITCH)){
+		if(get_timer0() > 30000L && nonduty !=0){
+			set_timer0(0);
+			duty+=5;
+			nonduty-=5;//いずれは0になる
+		}
+		output_c((input_c() & 0xf0) | CLOCKWISE);
+		delay_us(duty);
+		if(nonduty!=0) {
+			output_c((input_c() & 0xf0) | 0);
+			delay_us(nonduty);
+		}
+	}//動かすんです。
+	change_c(WISESTOP);
+	output_low (WINDING);
+}
 int main(void)
 {
-	int duty;
-	int nonduty;
 	bool movingflag=true;//エッジ検出のみに使う
 	int timecounter=0;
 	delay_ms(100);
@@ -336,31 +362,14 @@ int main(void)
 			}
 		}
 		
-		if(!input(MOVING)){
+		if(! input(MOVING) && ! movingflag && ! timecounter >= 1){
 			//移動中でない時
 			if(input(TACTSWITCH)){//微調整スイッチ...いきいますよー
-				//duty初期化
-				duty=20;
-				nonduty=30;
-				//巻き上げ開始
-				output_high(WINDING);
-				change_c(CLOCKWISE);
-				set_timer0(0);
-				while(input(TACTSWITCH)){
-					if(get_timer0() > 30000L && nonduty !=0){
-						set_timer0(0);
-						duty+=5;
-						nonduty-=5;//いずれは0になる
-					}
-					output_c((input_c() & 0xf0) | CLOCKWISE);
-					delay_us(duty);
-					if(nonduty!=0) {
-						output_c((input_c() & 0xf0) | 0);
-						delay_us(nonduty);
-					}
-				}//動かすんです。
-				change_c(WISESTOP);
-				output_low (WINDING);
+				Sequence_ManualTurn();
+			}
+			//起動巻き上げをしたいときには
+			if(input(INITIALSWITCH)){
+				Sequence_Winding(0);
 			}
 		}
 		
@@ -388,7 +397,7 @@ int main(void)
 			if(timecounter!=uINT_MAX)timecounter++;
 		}
 		
-		if(! movingflag && !input(MOVING)&& timecounter >= 1 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
+		if(! movingflag && !input(MOVING) && timecounter >= 1 && input(SWITCHINPUT) && !input(DAMMYSWITCH)){
 			output_high(JEJEJEOUT);
 			Sequence_Twojump();
 			output_low (JEJEJEOUT);
