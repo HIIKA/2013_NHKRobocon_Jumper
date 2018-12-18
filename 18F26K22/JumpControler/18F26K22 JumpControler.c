@@ -236,8 +236,8 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 						jumpcounter++;//ジャンプしたとみなす
 						timingcounter=0;
 						output_high(CONFIRMOUT);//タイマーリセット命令
-						duty=0;//PWMreset
-						nonduty=50;
+					//	duty=0;//PWMreset
+					//	nonduty=50;
 					}
 				}
 			}
@@ -405,30 +405,30 @@ int main(void)
 			}
 		}
 		
-		if(input(ONEJUMP)&&input(INFINITYJUMP)){
-			Sequence_Auto2j();
-			movingflag=true;//管轄外に行ったので動いていたことにする
-			timecounter=0;//一応時間リセット
-			continue;
-		}
-		
-		if(input(ONEJUMP)&&!input(INFINITYJUMP)){
-			Sequence_Onejump();
-			movingflag=true;//管轄外に行ったので動いていたことにする
-			timecounter=0;//一応時間リセット
-			continue;
-		}
-		
-		if(!input(ONEJUMP)&&input(INFINITYJUMP)){
-			if(infinity_flag){//無限ジャンプするべきか否か
-				Sequence_Infinityjump(uLONG_MAX);
-			}else{
-				Sequence_Infinityjump(6);
+		if(input(ONEJUMP)){
+			if(input(INFINITYJUMP)){
+				Sequence_Auto2j();
+				movingflag=true;//管轄外に行ったので動いていたことにする
+				timecounter=0;//一応時間リセット
+				continue;
+			}else{//if(input(ONEJUMP)&& ! input(INFINITYJUMP))
+				Sequence_Onejump();
+				movingflag=true;//管轄外に行ったので動いていたことにする
+				timecounter=0;//一応時間リセット
+				continue;
 			}
-			
-			movingflag=true;//管轄外に行ったので動いていたことにする
-			timecounter=0;//一応時間リセット
-			continue;
+		}else{// !input(ONEJUMP)&&input(INFINITYJUMP)
+			if(input(INFINITYJUMP)){
+				if(infinity_flag){//無限ジャンプするべきか否か
+					Sequence_Infinityjump(uLONG_MAX);
+				}else{
+					Sequence_Infinityjump(6);
+				}
+				
+				movingflag=true;//管轄外に行ったので動いていたことにする
+				timecounter=0;//一応時間リセット
+				continue;
+			}
 		}
 		
 		if(get_timer0() >= 62500L){
