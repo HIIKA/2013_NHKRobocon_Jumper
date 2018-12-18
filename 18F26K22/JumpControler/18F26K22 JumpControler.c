@@ -73,7 +73,7 @@ void initializing(void){
 	output_a(0x00);
 	output_b(0x00);
 	output_c(WISESTOP);//回転停止でスタート
-	set_tris_a(0x1F);//0b00011111
+	set_tris_a(0x3F);//0b00111111
 	set_tris_b(0x03);//0b00000011
 	set_tris_c(0x80);//0b10000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
@@ -221,6 +221,8 @@ int main(void)
 {
 	int duty;
 	int nonduty;
+	bool movingflag;
+	int timecounter=0;
 	delay_ms(100);
 	initializing();
 	
@@ -229,11 +231,20 @@ int main(void)
 	//起動時の巻き上げ
 	Sequence_Winding(0);
 	
+	movingflag=input(MOVING);
 	while(true)
 	{
-		if(input(MOVING)){
-			continue;
-		}else{//移動中でない時
+		
+		if(movingflag!=input(MOVING)){
+			movingflag=input(MOVING);
+			if(!movingflag){//移動中ではなくなったとき
+				set_timer0(0);
+				timecounter=0;
+			}
+		}
+		
+		if(!input(MOVING)){
+			//移動中でない時
 			if(input(TACTSWITCH)){//微調整スイッチ...いきいますよー
 				//duty初期化
 				duty=20;
@@ -262,17 +273,23 @@ int main(void)
 		
 		if(input(ONEJUMP)){
 			Sequence_Onejump();
+			movingflag=true;//管轄外に行ったので動いていたことにする
 		}
 		
 		if(input(INFINITYJUMP)){
 			Sequence_Infinityjump(5);
+			movingflag=true;//管轄外に行ったので動いていたことにする
 		}
 		
-		if((!input(MOVING))&&input(SWITCHINPUT)){
+		if(get_timer0() >= 62500L){
+			set_timer0(0);
+			if(timecounter!=uINT_MAX)timecounter++;
+		}
+		
+		if((!input(MOVING))&& timecounter >= 2 &&input(SWITCHINPUT)){
 			Sequence_Twojump();
+			movingflag=true;//管轄外に行ったので動いていたことにする
 		}
-		
-		
 	}
 return 0;
 }
