@@ -81,6 +81,10 @@
 #define INFCLEARCHAR	'h'//無限回ジャンプの時の信号CLEAR
 #define YELLOWCHAR		'I'//黄色に光る
 #define ENDYELLOWCHAR	'i'//黄色消える
+#define COUNT1			'j'
+#define COUNT2			'k'
+#define COUNT3			'l'
+#define COUNTEND		'm'
 bool infinity_flag=0;
 
 
@@ -267,15 +271,14 @@ void Sequence_Onejump(void){
 	output_high(SEQUENCEMODE);
 	output_high(HEYOUT);
 	
-	for(i=0;i<2;i++){//2秒間点滅
-		yellow_blink(true);
-		delay_ms(500);
-		yellow_blink(false);
-		delay_ms(500);
-	}
-	//timing_bit(true);
-	//delay_ms(400);
-	
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNTEND);
 		//ジャンプ
 		Sequence_Winding(1);
 	
@@ -291,14 +294,14 @@ void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
 	output_high(SEQUENCEMODE);
 	output_high(HEYOUT);
 	
-	for(i=0;i<2;i++){//2秒間点滅
-		yellow_blink(true);
-		delay_ms(500);
-		yellow_blink(false);
-		delay_ms(500);
-	}
-	//timing_bit(true);
-	//delay_ms(400);
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNT1);
+	delay_ms(500);
+	putc(COUNTEND);
 	
 		//ジャンプ
 		Sequence_Winding(cont);//無限の時はuLONG_MAX
@@ -326,6 +329,29 @@ void Sequence_Twojump(void){
 	delay_ms(400);
 	output_low (SEQUENCEMODE);
 }
+
+void Sequence_Auto2j(void){
+	putc(SPBEGINCHAR);
+	output_high(SEQUENCEMODE);
+	putc(FORWARDCHAR);
+	output_high(SPFORWARD);
+	delay_ms(1400);
+	timing_bit(false);
+	delay_ms(400);
+	timing_bit(true);
+	delay_ms(200);//total=2000
+	putc(ENDFORWARDCHAR);
+	output_low(SPFORWARD);
+	output_high(JEJEJEOUT);
+		//ジャンプ
+		Sequence_Winding(2);
+	output_low (JEJEJEOUT);
+	putc(SPENDCHAR);
+	//着地待機
+	delay_ms(400);
+	output_low (SEQUENCEMODE);
+}
+
 void Sequence_ManualTurn(void){
 	//duty初期化
 	int duty=20;
@@ -349,28 +375,6 @@ void Sequence_ManualTurn(void){
 	}//動かすんです。
 	change_c(WISESTOP);
 	output_low (WINDING);
-}
-
-void Sequence_Auto2j(void){
-	putc(SPBEGINCHAR);
-	output_high(SEQUENCEMODE);
-	putc(FORWARDCHAR);
-	output_high(SPFORWARD);
-	delay_ms(1400);
-	timing_bit(false);
-	delay_ms(400);
-	timing_bit(true);
-	delay_ms(200);//total=2000
-	putc(ENDFORWARDCHAR);
-	output_low(SPFORWARD);
-	output_high(JEJEJEOUT);
-		//ジャンプ
-		Sequence_Winding(2);
-	output_low (JEJEJEOUT);
-	putc(SPENDCHAR);
-	//着地待機
-	delay_ms(400);
-	output_low (SEQUENCEMODE);
 }
 
 int main(void)
