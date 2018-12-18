@@ -120,22 +120,7 @@ void data_transport(void){//現在の状況を送信する
 			//*******************************************************
 		case pin_forward:
 			if(bit_test(trans_data,i)){//前進時に
-				if(is_right()){
-					output_high(out_forward);
-					output_high(out_right);
-					output_low(out_left);
-					output_low(out_back);
-				}else if(is_left()){
-					output_high(out_forward);
-					output_low(out_right);
-					output_high(out_left);
-					output_low(out_back);
-				}else{//前進でも後進でもないとき
-					output_high(out_forward);
-					output_low(out_right);
-					output_low(out_left);
-					output_low(out_back);
-				}
+				output_high(out_forward);
 			}else{
 				output_low(out_forward);
 			}
@@ -143,22 +128,7 @@ void data_transport(void){//現在の状況を送信する
 			//*******************************************************
 		case pin_back:
 			if(bit_test(trans_data,i)){
-				if(is_right()){
-					output_low(out_forward);
-					output_low(out_right);
-					output_high(out_left);
-					output_high(out_back);
-				}else if(is_left()){
-					output_low(out_forward);
-					output_high(out_right);
-					output_low(out_left);
-					output_high(out_back);
-				}else{//前進でも後進でもないとき
-					output_low(out_forward);
-					output_low(out_right);
-					output_low(out_left);
-					output_high(out_back);
-				}
+				output_high(out_back);
 			}else{
 				output_low(out_back);
 			}
@@ -166,12 +136,7 @@ void data_transport(void){//現在の状況を送信する
 			//*******************************************************
 		case pin_right:
 			if(bit_test(trans_data,i)){
-				if(!is_forward()&&!is_back()){//前進でも後進でもないとき
-					output_low(out_forward);
-					output_high(out_right);
-					output_low(out_left);
-					output_low(out_back);
-				}
+				output_high(out_right);
 			}else{
 				output_low(out_right);
 			}
@@ -179,12 +144,7 @@ void data_transport(void){//現在の状況を送信する
 			//*******************************************************
 		case pin_left:
 			if(bit_test(trans_data,i)){
-				if(!is_forward()&&!is_back()){//前進でも後進でもないとき
-					output_low(out_forward);
-					output_low(out_right);
-					output_high(out_left);
-					output_low(out_back);
-				}
+				output_high(out_left);
 			}else{
 				output_low(out_left);
 			}
