@@ -23,7 +23,7 @@ CCP‚ðŽg‚í‚È‚¢‚±‚Æ‚É‚µ‚½
 #device high_ints = true
 
 #use delay(clock = 64000000)
-#use RS232(baud=152000,xmit=pin_c6,rcv=pin_c7,INVERT)
+#use RS232(baud=15200,xmit=pin_c6,rcv=pin_c7,INVERT)
 
 
 #use standard_io(all)
@@ -149,12 +149,12 @@ void set_color(void){
 		return;
 	}
 	if(jumpingcount==1){
-		CreateLEDColor(1,1,1,1);//white
-		CreateLEDColor(2,1,1,1);//white
+		//CreateLEDColor(1,1,1,1);//white
+		//CreateLEDColor(2,1,1,1);//white
 		CreateLEDColor(3,1,1,0);//yellow
 		return;
 	}else if(jumpingcount==2){
-		CreateLEDColor(1,1,1,1);//white
+		//CreateLEDColor(1,1,1,1);//white
 		CreateLEDColor(2,1,1,0);//yellow
 		CreateLEDColor(3,1,1,0);//yellow
 		return;
@@ -294,5 +294,6 @@ void main(void)
 	
 	while(true)
 	{
+		set_color();
 	}
 }
