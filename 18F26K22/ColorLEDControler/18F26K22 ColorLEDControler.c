@@ -15,7 +15,7 @@
 #device high_ints = true
 
 #use delay(clock = 64000000)
-#use RS232(baud=9600,xmit=pin_c6,rcv=pin_c7,INVERT)
+#use RS232(baud=19200,xmit=pin_c6,rcv=pin_c7,INVERT)
 
 
 #use standard_io(all)
@@ -37,6 +37,9 @@
 #define ENDSIGNALCHAR	'g'//ジャンプタイミング消す
 #define CLEARCHAR		'H'//信号CLEAR
 #define INFCLEARCHAR	'h'//無限回ジャンプの時の信号CLEAR
+#define YELLOWCHAR		'I'//黄色に光る
+#define ENDYELLOWCHAR	'i'//黄色消える
+
 bool switchflag=0;
 bool spflag=0;
 bool waitflag=0;
@@ -44,6 +47,7 @@ bool errflag=0;
 bool forwardflag=0;
 bool signalflag=0;
 bool infmode=0;
+bool yellowflag=0;
 #define MOVING pin_a0
 #define MOTORERR pin_a1
 #define SENSORERR pin_a2
@@ -122,6 +126,10 @@ void timer0(void){
 		CreateColor(49, 15, 80);//purple
 		return;
 	}
+	if(yellowflag){
+		CreateColor(100,100,0);//yellow
+		return;
+	}
 	if(signalflag){
 		CreateColor(100, 65, 0);//Orange
 		return;
@@ -191,6 +199,12 @@ void interrupt_rcv(void){
 	case ENDSIGNALCHAR:
 		signalflag=false;
 		break;
+	case YELLOWCHAR:
+		yellowflag=true;
+		break;
+	case ENDYELLOWCHAR:
+		yellowflag=false;
+		break;
 	case CLEARCHAR:
 		switchflag=false;
 		waitflag=false;
@@ -198,6 +212,7 @@ void interrupt_rcv(void){
 		forwardflag=false;
 		signalflag=false;
 		errflag=false;
+		yellowflag=false;
 		infmode=false;//インフィニティモードではない
 		break;
 	case INFCLEARCHAR:
