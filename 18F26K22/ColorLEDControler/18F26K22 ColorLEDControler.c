@@ -23,7 +23,7 @@ CCPを使わないことにした
 #device high_ints = true
 
 #use delay(clock = 64000000)
-#use RS232(baud=19200,xmit=pin_c6,rcv=pin_c7,INVERT)
+#use RS232(baud=152000,xmit=pin_c6,rcv=pin_c7,INVERT)
 
 
 #use standard_io(all)
@@ -134,14 +134,14 @@ void set_color(void){
 	}
 	if(input(MOTORERR)){
 		CreateLEDColor(1,1,0,0);//red
-		CreateLEDColor(2,1,1,1);//red
-		CreateLEDColor(3,1,1,1);//red
+		CreateLEDColor(2,1,1,1);//white
+		CreateLEDColor(3,1,1,1);//white
 		return;
 	}
 	if(input(SENSORERR)){
-		CreateLEDColor(1,1,1,1);//red
+		CreateLEDColor(1,1,1,1);//white
 		CreateLEDColor(2,1,0,0);//red
-		CreateLEDColor(3,1,1,1);//red
+		CreateLEDColor(3,1,1,1);//white
 		return;
 	}
 	if(input(MOVING)){
@@ -149,12 +149,12 @@ void set_color(void){
 		return;
 	}
 	if(jumpingcount==1){
-		CreateLEDColor(1,1,1,1);//yellow
-		CreateLEDColor(2,1,1,1);//yellow
+		CreateLEDColor(1,1,1,1);//white
+		CreateLEDColor(2,1,1,1);//white
 		CreateLEDColor(3,1,1,0);//yellow
 		return;
 	}else if(jumpingcount==2){
-		CreateLEDColor(1,1,1,1);//yellow
+		CreateLEDColor(1,1,1,1);//white
 		CreateLEDColor(2,1,1,0);//yellow
 		CreateLEDColor(3,1,1,0);//yellow
 		return;
@@ -169,14 +169,14 @@ void set_color(void){
 		return;
 	}
 	if(signalflag){
-		CreateLEDColor(1,1, 1, 0);//Orange
-		CreateLEDColor(2,1, 0, 0);//Orange
-		CreateLEDColor(3,1, 1, 0);//Orange
+		CreateLEDColor(1,1, 1, 0);//yellow
+		CreateLEDColor(2,1, 0, 0);//red
+		CreateLEDColor(3,1, 1, 0);//yellow
 		return;
 	}
 	if(forwardflag){
 		CreateLEDColor(1,1, 0, 1);//purple
-		CreateLEDColor(2,1, 1, 1);//purple
+		CreateLEDColor(2,1, 1, 1);//white
 		CreateLEDColor(3,1, 0, 1);//purple
 		return;
 	}
@@ -186,7 +186,7 @@ void set_color(void){
 	}
 	if(switchflag){
 		CreateLEDColor(1,0, 1, 0);//Green
-		CreateLEDColor(2,1, 1, 1);//Green
+		CreateLEDColor(2,1, 1, 1);//white
 		CreateLEDColor(3,0, 1, 0);//Green
 		return;
 	}
@@ -270,6 +270,7 @@ void interrupt_rcv(void){
 		errflag=false;
 		yellowflag=false;
 		infmode=false;//インフィニティモードではない
+		jumpingcount=0;
 		break;
 	case INFCLEARCHAR:
 		switchflag=false;
@@ -279,6 +280,7 @@ void interrupt_rcv(void){
 		signalflag=false;
 		errflag=false;
 		infmode=true;//インフィニティモードなんだな
+		jumpingcount=0;
 		break;
 	}
 	set_color();
