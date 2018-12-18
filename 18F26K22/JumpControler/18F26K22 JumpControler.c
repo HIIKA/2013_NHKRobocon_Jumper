@@ -22,6 +22,7 @@
 
 ************************************************/
 #include <18f26K22.h>
+#include <limits.h>
 #fuses PLLEN, INTRC_IO,NOWDT,PUT,NOPROTECT,BROWNOUT,NOLVP,MCLR
 
 #use delay(clock = 64000000)
@@ -61,13 +62,13 @@ void initializing(void){
 	Setup_timer_0(T0_DIV_256);//1count 16us
 }
 
-void delay_deadtime(void){
+void change_c(int port){
 	output_c((input_c() & 0xf0) | 0);
 	delay_ms(deadtime);
+	output_c((input_c() & 0xf0) | port);
 }
 void Exception_ERR(void){
-	delay_deadtime();
-	output_c((input_c() & 0xf0) | 0);//出力なし
+	change_c(0);//出力なし
 	while(true){
 		output_toggle(ERRLED);//無限ループ
 		delay_ms(1000);
@@ -75,42 +76,49 @@ void Exception_ERR(void){
 }
 
 //巻き上げ処理、これでジャンプも行う
-int Sequence_Winding(){
-	output_c((input_c() & 0xf0) | WISESTOP);
-	while(!input(STOPTURN)){//ジャンプモーター待ち
-		output_toggle(ERRLED);delay_ms(200);
+int Sequence_Winding(int1 flag=0){//切れ目を見つけたいだけなら
+	int counter =0;
+	
+	change_c( WISESTOP);
+	while(!input(STOPTURN)){//ジャンプモーター停止待ち
+		output_toggle(ERRLED);delay_ms(100);
 	}
 	output_low (ERRLED);
 	
 	output_high(WINDING);
-	delay_deadtime();
-	output_c((input_c() & 0xf0) | CLOCKWISE);//巻き上げを行う
-
-
+	if(input(INTERRUPT)&&flag){//フラグがあり、すでに切れ目にいるなら
+		change_c( WISESTOP);//巻き上げを行う
+		output_high(WINDING);
+		return 0;//正常終了
+	}
+	
+	change_c(CLOCKWISE);//巻き上げを行う
+	
 	set_timer0(0);
 	while(input(INTERRUPT)){//今切れ目にあるなら
-		if(get_timer0() > 12500){//200ms以内に切れ目から抜けないとエラー
+		if(get_timer0() > 20500){//300ms以内に切れ目から抜けないとエラー
 			Exception_ERR();
 			return 1;
 		}
 		output_c((input_c() & 0xf0) | CLOCKWISE);//pwm
-		delay_us(20);
+		delay_us(25);
 		output_c((input_c() & 0xf0) | 0);//pwm
 		delay_us(25);
 	}
 
-	delay_deadtime();
-	output_c((input_c() & 0xf0) | CLOCKWISE);//巻き上げを行う
-	delay_ms(100);//追加の0.1秒
+	change_c( CLOCKWISE);//巻き上げを行う
 	set_timer0(0);
 	while(!input(INTERRUPT)){//歯車の切れ目に行くまで巻き上げ
-		if(get_timer0() > 62500L){//約1秒以内にまた切れ目を見つけれないとエラー
+		if(get_timer0()>=(LONG_MAX-100)){//オーバーフロー直前
+			set_timer0(0);
+			counter++;
+		}
+		if(counter == 1 && get_timer0() > 30000L){//約1.5秒以内にまた切れ目を見つけれないとエラー
 			Exception_ERR();
 			return 1;
 		}
 	}
-	delay_deadtime();
-	output_c((input_c() & 0xf0) | WISESTOP);//停止
+	change_c( WISESTOP);//停止
 	output_low(WINDING);//巻取り終了ー
 	return 0;
 }
@@ -185,12 +193,11 @@ int main(void)
 {
 	initializing();
 	
-	
 	while(input(MOVING)){}
+	
 	//起動時の巻き上げ
-	if(Sequence_Winding() != 0){
-		Exception_ERR();
-	}
+	Sequence_Winding(true);
+	
 	while(true)
 	{
 		if(input(MOVING)){
