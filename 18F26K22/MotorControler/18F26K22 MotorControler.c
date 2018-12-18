@@ -22,19 +22,23 @@ CCP2			:RB5(CCP3)->LED
 
 #use fast_io(all)
 
+
+#define change_pin1 pin_a0//a0は左側
+#define change_pin2 pin_a1//a1は右側
 #define MOVINGPIN Pin_b7
 #define WINDINGPIN Pin_b6
 #define CCP1PIN Pin_a4
 #define CCP2PIN Pin_b5
 #define ERRLED pin_b4
-#define FORWARD	0b10101010
-#define BACK	0b01010101
-#define LEFT	0b10100101
-#define RIGHT	0b01011010
 #define STOP	0b10011001
 #define TIMER0INTERVAL 0xFFDF //50us
 #define CHANGEINTERVAL 0xF831 //1ms
 #define PR2 49
+
+int FORWARD	=	0;
+int BACK	=	0;
+int LEFT	=	0;
+int RIGHT	=	0;
 
 int recent = STOP;//現在のモーター状況をバックアップ(input_c()のままだとPWMで認識できなくなる)
 
@@ -48,8 +52,8 @@ void initializing(){
 	//ｵｼﾚｰﾀ設定
 	setup_oscillator(OSC_NORMAL | OSC_64MHZ);
 	//TRIS設定
-	set_tris_a(0);
-	set_tris_b(0x4f);
+	set_tris_a(0x0f);
+	set_tris_b(0b01001111);
 	set_tris_c(0);
 	output_a(0x00);
 	output_b(0x00);
@@ -65,6 +69,30 @@ void initializing(){
 	//PWM
 	Set_pwm5_duty(DetermineDuty(100));
 	Set_pwm3_duty(DetermineDuty(100));
+	//モーターの回転方向を決定する
+	if(input(change_pin1)){
+		FORWARD	=	FORWARD	| 0b01010000;
+		BACK	=	BACK	| 0b10100000;
+		LEFT	=	LEFT	| 0b01010000;
+		RIGHT	=	RIGHT	| 0b10100000;
+	}else{
+		FORWARD	=	FORWARD	| 0b10100000;
+		BACK	=	BACK	| 0b01010000;
+		LEFT	=	LEFT	| 0b10100000;
+		RIGHT	=	RIGHT	| 0b01010000;
+	}
+	if(input(change_pin2)){
+		FORWARD	=	FORWARD	| 0b00000101;
+		BACK	=	BACK	| 0b00001010;
+		LEFT	=	LEFT	| 0b00001010;
+		RIGHT	=	RIGHT	| 0b00000101;
+	}else{
+		FORWARD	=	FORWARD	| 0b00001010;
+		BACK	=	BACK	| 0b00000101;
+		LEFT	=	LEFT	| 0b00000101;
+		RIGHT	=	RIGHT	| 0b00001010;
+	}
+	
 	
 	//割り込み許可
 	enable_interrupts(GLOBAL);
@@ -159,8 +187,7 @@ void mainloop(void){
 	}
 
 	//PWM
-	switch(recent){
-	case FORWARD:
+	if(recent==FORWARD){
 		if(input(CCP1PIN)){
 			output_c( input_c() | (FORWARD & 0x0f));//下位4bitを設定する
 		}else{
@@ -171,8 +198,7 @@ void mainloop(void){
 		}else{
 			output_c(input_c() & 0x0f);
 		}
-		break;
-	case BACK:
+	}else if(recent==BACK){
 		if(input(CCP1PIN)){
 			output_c( input_c()| (BACK & 0x0f));//下位4bitを設定する
 		}else{
@@ -183,8 +209,7 @@ void mainloop(void){
 		}else{
 			output_c(input_c() & 0x0f);
 		}
-		break;
-	case RIGHT:
+	}else if(recent==RIGHT){
 		if(input(CCP1PIN)){
 			output_c( input_c() | (RIGHT & 0x0f));//下位4bitを設定する
 		}else{
@@ -195,8 +220,7 @@ void mainloop(void){
 		}else{
 			output_c(input_c() & 0x0f);
 		}
-		break;
-	case LEFT:
+	}else if(recent==LEFT){
 		if(input(CCP1PIN)){
 			output_c( input_c() | (LEFT & 0x0f));//下位4bitを設定する
 		}else{
@@ -207,7 +231,6 @@ void mainloop(void){
 		}else{
 			output_c(input_c() & 0x0f);
 		}
-		break;
 	}
 	
 	if(input(pin_b0) ==0 && input(pin_b1) ==0 && input(pin_b2) ==0 && input(pin_b3) ==0){//信号がどれも来てない
