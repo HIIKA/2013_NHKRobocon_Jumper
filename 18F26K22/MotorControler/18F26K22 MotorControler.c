@@ -114,47 +114,47 @@ void PWM(void){
 	//PWM
 	if(recent==FORWARD){
 		if(input(CCP1PIN)){
-			output_c( input_c() | (FORWARD & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
+			output_c((input_c() & 0xf0) | (FORWARD & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
 		}else{
 			output_c(input_c() & 0xf0);//‰ºˆÊ4bit‚ğ0‚É‚·‚é
 		}
 		if(input(CCP2PIN)){
-			output_c( input_c() | (FORWARD & 0xf0));
+			output_c( (input_c() & 0x0f) | (FORWARD & 0xf0));//ãˆÊ4bit‚ğİ’è‚·‚é
 		}else{
-			output_c(input_c() & 0x0f);
+			output_c(input_c() & 0x0f);//ãˆÊ4bit‚ğ0‚É‚·‚é
 		}
 	}else if(recent==BACK){
 		if(input(CCP1PIN)){
-			output_c( input_c()| (BACK & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
+			output_c((input_c() & 0xf0) | (BACK & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
 		}else{
 			output_c(input_c() & 0xf0);//‰ºˆÊ4bit‚ğ0‚É‚·‚é
 		}
 		if(input(CCP2PIN)){
-			output_c( input_c() | (BACK & 0xf0));
+			output_c( (input_c() & 0x0f) | (BACK & 0xf0));//ãˆÊ4bit‚ğİ’è‚·‚é
 		}else{
-			output_c(input_c() & 0x0f);
+			output_c(input_c() & 0x0f);//ãˆÊ4bit‚ğ0‚É‚·‚é
 		}
 	}else if(recent==RIGHT){
 		if(input(CCP1PIN)){
-			output_c( input_c() | (RIGHT & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
+			output_c( (input_c() & 0xf0) | (RIGHT & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
 		}else{
 			output_c(input_c() & 0xf0);//‰ºˆÊ4bit‚ğ0‚É‚·‚é
 		}
 		if(input(CCP2PIN)){
-			output_c( input_c() | (RIGHT & 0xf0));
+			output_c( (input_c() & 0x0f) | (RIGHT & 0xf0));//ãˆÊ4bit‚ğİ’è‚·‚é
 		}else{
-			output_c(input_c() & 0x0f);
+			output_c(input_c() & 0x0f);//ãˆÊ4bit‚ğ0‚É‚·‚é
 		}
 	}else if(recent==LEFT){
 		if(input(CCP1PIN)){
-			output_c( input_c() | (LEFT & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
+			output_c( (input_c() & 0xf0) | (LEFT & 0x0f));//‰ºˆÊ4bit‚ğİ’è‚·‚é
 		}else{
 			output_c(input_c() & 0xf0);//‰ºˆÊ4bit‚ğ0‚É‚·‚é
 		}
 		if(input(CCP2PIN)){
-			output_c( input_c() | (LEFT & 0xf0));
+			output_c( (input_c() & 0x0f) | (LEFT & 0xf0));//ãˆÊ4bit‚ğİ’è‚·‚é
 		}else{
-			output_c(input_c() & 0x0f);
+			output_c(input_c() & 0x0f);//ãˆÊ4bit‚ğ0‚É‚·‚é
 		}
 	}
 }
