@@ -1,13 +1,21 @@
 /*
 カラーLED制御部
-出力(CCP1)			:RC2
-出力(CCP2)			:RC1
-出力(CCP4)			:RB0
-信号入力ピン1		:RA0
-信号入力ピン2		:RA1
-信号入力ピン3		:RA2
-信号入力ピン4		:RA3
-
+出力1R			:RB0
+出力1G			:RB1
+出力1B			:RB2
+出力2R			:RB3
+出力2G			:RB4
+出力2B			:RB5
+出力3R			:RA0
+出力3G			:RA1
+出力3B			:RA2
+信号入力ピン1		:RC0
+信号入力ピン2		:RC1
+信号入力ピン3		:RC2
+信号入力ピン4		:RC3
+シリアル通信TX1					:RC6
+シリアル通信RX1					:RC7
+CCPを使わないことにした
 */
 #include <18f26K22.h>
 #include <limits.h>
@@ -48,25 +56,24 @@ bool forwardflag=0;
 bool signalflag=0;
 bool infmode=0;
 bool yellowflag=0;
-#define MOVING pin_a0
-#define MOTORERR pin_a1
-#define SENSORERR pin_a2
-#define mog3 pin_a3// あまり
 
-//色変更の奴
-#define Set_RED_duty Set_pwm1_duty
-#define Set_BLUE_duty Set_pwm2_duty
-#define Set_GREEN_duty Set_pwm4_duty
-//色の選定の参考
-//http://lowlife.jp/yasusii/static/color_chart.html
-//のfloatを100倍すればいい
+#define OUT1R pin_b0
+#define OUT1G pin_b1
+#define OUT1B pin_b2
+#define OUT2R pin_b3
+#define OUT2G pin_b4
+#define OUT2B pin_b5
+#define OUT3R pin_a0
+#define OUT3G pin_a1
+#define OUT3B pin_a2
+
+#define MOVING pin_c0
+#define MOTORERR pin_c1
+#define SENSORERR pin_C2
+#define mog3 pin_c3// あまり
 
 
-#inline //この程度の計算はインライン展開させる
-long DetermineDuty(unsigned int percent){
-	if(percent>100)percent=100;
-	return (4*(PR2+1)/100)*(long)percent;//正論理
-}
+
 
 void initializing(void){
 	//ｵｼﾚｰﾀ設定
@@ -74,89 +81,105 @@ void initializing(void){
 	//TRIS設定
 	set_tris_a(0);
 	set_tris_b(0);
-	set_tris_c(0x80);
+	set_tris_c(0b10001111);
 	output_a(0x00);
 	output_b(0x00);
 	output_c(0x80);
-	//周期＝（PR2＋１）×4*1/f×（TMR2のプリスケール値）
-	//デューティ＝DC1×1/f×（TMR2のプリスケール値）
-	//duty cycle = value / [ 4 * (PR2 +1 ) ]
-	Setup_ccp1(CCP_PWM | CCP_USE_TIMER1_AND_TIMER2);//pin_c2
-	Setup_ccp2(CCP_PWM | CCP_USE_TIMER1_AND_TIMER2);//pin_c1
-	Setup_ccp4(CCP_PWM | CCP_USE_TIMER1_AND_TIMER2);//pin_b0
-	
-	Setup_timer_0(T0_DIV_16);//1count 1us
-	Setup_timer_2(T2_DIV_BY_16,PR2,1);//20khz
 	
 	enable_interrupts(GLOBAL);
 	enable_interrupts(INT_RDA);
-	enable_interrupts(INT_TIMER0);
-	set_timer0(TIMER0INTERVAL);
 	
 	printf("start");
 }
 
 #inline
-void CreateColor(unsigned int red,unsigned int green,unsigned int blue){
-	if(red	>100)red	=100;
-	if(green>100)green	=100;
-	if(blue	>100)blue	=100;
-	Set_RED_duty	(DetermineDuty(red));
-	Set_GREEN_duty	(DetermineDuty(green));
-	Set_BLUE_duty	(DetermineDuty(blue));
+void CreateLEDColor(unsigned int lednum, int1 red,int1 green,int1 blue){
+	if(lednum==1){
+		output_bit(OUT1R,red);
+		output_bit(OUT1G,green);
+		output_bit(OUT1B,blue);
+	}else if(lednum==2){
+		output_bit(OUT2R,red);
+		output_bit(OUT2G,green);
+		output_bit(OUT2B,blue);
+	}else if(lednum==3){
+		output_bit(OUT3R,red);
+		output_bit(OUT3G,green);
+		output_bit(OUT3B,blue);
+	}
+}
+#inline
+void CreateLEDColorALL(int1 red,int1 green,int1 blue){
+	output_bit(OUT1R,red);
+	output_bit(OUT1G,green);
+	output_bit(OUT1B,blue);
+	output_bit(OUT2R,red);
+	output_bit(OUT2G,green);
+	output_bit(OUT2B,blue);
+	output_bit(OUT3R,red);
+	output_bit(OUT3G,green);
+	output_bit(OUT3B,blue);
 }
 
 
-#INT_TIMER0
-void timer0(void){
-	set_timer0(TIMER0INTERVAL);
+void set_color(void){
 	if(errflag){
-		CreateColor(100,0,0);//red
+		CreateLEDColorALL(1,0,0);//red
 		return;
 	}
 	if(input(MOTORERR)){
-		CreateColor(100,10,10);//red
+		CreateLEDColor(1,1,0,0);//red
+		CreateLEDColor(2,1,1,1);//red
+		CreateLEDColor(3,1,1,1);//red
 		return;
 	}
 	if(input(SENSORERR)){
-		CreateColor(100,20,20);//red
+		CreateLEDColor(1,1,1,1);//red
+		CreateLEDColor(2,1,0,0);//red
+		CreateLEDColor(3,1,1,1);//red
 		return;
 	}
 	if(input(MOVING)){
-		CreateColor(49, 15, 80);//purple
+		CreateLEDColorALL(1, 0, 1);//purple
 		return;
 	}
 	if(yellowflag){
-		CreateColor(100,100,0);//yellow
+		CreateLEDColorALL(1,1,0);//yellow
 		return;
 	}
 	if(signalflag){
-		CreateColor(100, 65, 0);//Orange
+		CreateLEDColor(1,1, 1, 0);//Orange
+		CreateLEDColor(2,1, 0, 0);//Orange
+		CreateLEDColor(3,1, 1, 0);//Orange
 		return;
 	}
 	if(forwardflag){
-		CreateColor(49, 15, 80);//purple
+		CreateLEDColor(1,1, 0, 1);//purple
+		CreateLEDColor(2,1, 1, 1);//purple
+		CreateLEDColor(3,1, 0, 1);//purple
 		return;
 	}
 	if(spflag){
-		CreateColor(0, 100, 0);//Green
+		CreateLEDColorALL(0, 1, 0);//Green
 		return;
 	}
 	if(switchflag){
-		CreateColor(10, 100, 10);//LightGreen
+		CreateLEDColor(1,0, 1, 0);//Green
+		CreateLEDColor(2,1, 1, 1);//Green
+		CreateLEDColor(3,0, 1, 0);//Green
 		return;
 	}
 	if(waitflag){
-		CreateColor(100,100,100);//white
+		CreateLEDColorALL(1,1,1);//white
 		return;
 	}
 	
 	if(infmode){
 		//無限モードのときは通常時の色が違う
-		CreateColor(0,100,100);
+		CreateLEDColorALL(0,1,1);
 	}else{
 		//何も信号がなければ適当に光らせる
-		CreateColor(0,0, 100);
+		CreateLEDColorALL(0,0,1);
 	}
 }
 
@@ -225,7 +248,7 @@ void interrupt_rcv(void){
 		infmode=true;//インフィニティモードなんだな
 		break;
 	}
-	timer0();//即座に変更を反応させるためにここで呼び出しておく
+	set_color();
 	
 }
 
