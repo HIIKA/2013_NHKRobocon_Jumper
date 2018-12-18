@@ -43,6 +43,7 @@ CCP2			:RB5(CCP3)->LED
 #define CHANGEINTERVAL 0xF831 //1ms
 #define PR2 49
 
+#define LEAN_DUTY 80//斜め移動のためのデューティ
 
 #define pin_forward pin_b3
 #define pin_back pin_b2
@@ -234,7 +235,7 @@ void mainloop(void){
 		if(input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){
 			if(recent==FORWARD|| !lean_rightflag|| lean_leftflag){
 				lean_rightflag=true;
-				Set_pwm3_duty(DetermineDuty(40));
+				Set_pwm3_duty(DetermineDuty(LEAN_DUTY));
 				lean_leftflag=false;
 			}
 		}
@@ -243,7 +244,7 @@ void mainloop(void){
 			if(recent==FORWARD|| lean_rightflag|| !lean_leftflag){
 				lean_rightflag=false;
 				lean_leftflag=true;
-				Set_pwm5_duty(DetermineDuty(40));
+				Set_pwm5_duty(DetermineDuty(LEAN_DUTY));
 			}
 		}
 		//後進+右
@@ -251,14 +252,14 @@ void mainloop(void){
 			if(recent==BACK|| lean_rightflag|| !lean_leftflag){
 				lean_rightflag=false;
 				lean_leftflag=true;
-				Set_pwm5_duty(DetermineDuty(40));
+				Set_pwm5_duty(DetermineDuty(LEAN_DUTY));
 			}
 		}
 		//後進+左
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&input(pin_left)){
 			if(recent==BACK|| !lean_rightflag|| lean_leftflag){
 				lean_rightflag=true;
-				Set_pwm3_duty(DetermineDuty(40));
+				Set_pwm3_duty(DetermineDuty(LEAN_DUTY));
 				lean_leftflag=false;
 			}
 		}
