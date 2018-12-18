@@ -241,9 +241,11 @@ void mainloop(void){
 		//前進+右
 		if(input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){
 			if(recent==FORWARD|| !lean_rightflag|| lean_leftflag){
+				/*
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
+				*/
 				recent=FORWARD;
 				output_high(MOVINGPIN);
 				lean_rightflag=true;
@@ -256,9 +258,11 @@ void mainloop(void){
 		//前進+左
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){
 			if(recent==FORWARD|| lean_rightflag|| !lean_leftflag){
+				/*
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
+				*/
 				recent=FORWARD;
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
@@ -270,9 +274,11 @@ void mainloop(void){
 		//後進+右
 		if(!input(pin_forward)&&input(pin_back)&&input(pin_right)&&!input(pin_left)){
 			if(recent==BACK|| lean_rightflag|| !lean_leftflag){
+				/*
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
+				*/
 				recent=BACK;
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
@@ -284,9 +290,11 @@ void mainloop(void){
 		//後進+左
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&input(pin_left)){
 			if(recent==BACK|| !lean_rightflag|| lean_leftflag){
+				/*
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
+				*/
 				recent=BACK;
 				output_high(MOVINGPIN);
 				lean_rightflag=true;
