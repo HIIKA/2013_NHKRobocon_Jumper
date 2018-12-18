@@ -151,7 +151,7 @@ void change_c(int port){
 void Exception_ERR(void){
 	change_c(0);//出力なし
 	output_low (WINDING);
-	output_low (SEQUENCEMODE);
+	output_high(SEQUENCEMODE);
 	output_low (SPFORWARD);
 	putc(ERRCHAR);
 	output_high(ERRLED);
@@ -273,7 +273,8 @@ void Sequence_Onejump(void){
 		yellow_blink(false);
 		delay_ms(500);
 	}
-	timing_bit(true);
+	//timing_bit(true);
+	//delay_ms(400);
 	
 		//ジャンプ
 		Sequence_Winding(1);
@@ -296,7 +297,8 @@ void Sequence_Infinityjump(unsigned long cont = uLONG_MAX){
 		yellow_blink(false);
 		delay_ms(500);
 	}
-	timing_bit(true);
+	//timing_bit(true);
+	//delay_ms(400);
 	
 		//ジャンプ
 		Sequence_Winding(cont);//無限の時はuLONG_MAX
@@ -365,10 +367,11 @@ int main(void)
 			if(!movingflag){//移動中ではなくなったとき
 				set_timer0(0);
 				timecounter=0;
+				Sequence_Winding(0);//脚が下りたのを直す
 			}
 		}
 		
-		if(! input(MOVING) && ! movingflag && ! timecounter >= 1){
+		if(! input(MOVING) && ! movingflag &&  timecounter >= 1){
 			//移動中でない時
 			if(input(TACTSWITCH)){//微調整スイッチ...いきいますよー
 				Sequence_ManualTurn();
