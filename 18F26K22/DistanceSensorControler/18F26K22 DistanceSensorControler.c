@@ -1,6 +1,7 @@
 /************************************************
 距離センサー制御部
-RB7=>特別シーケンス中の動作停止を受け取る入力ピン
+			RB7=>特別シーケンス中の動作停止を受け取る入力ピン
+			RB0=>LED1//なんかつながってないセンサーあるよ！
 		入力ピン	<=>	出力ピン
 			RA0	<=>	RB6 
 			RA1	<=>	RB5
@@ -12,10 +13,9 @@ RB7=>特別シーケンス中の動作停止を受け取る入力ピン
 //RC0 <=> RC7
 //RC1 <=> RC6
 //RC2 <=> RC5
-
-RB0=>LED1//なんかつながってないセンサーあるよ！
 ************************************************/
 #include <18f26K22.h>
+#include <limits.h>
 #fuses PLLEN, INTRC_IO,NOWDT,PUT,NOPROTECT,BROWNOUT,NOLVP,MCLR
 
 #use delay(clock = 64000000)
@@ -27,12 +27,13 @@ RB0=>LED1//なんかつながってないセンサーあるよ！
 
 #define SSW_DELAY 800				//求める最大の距離[mm]
 #define INTERVALTIME 0xF8AD
-#define DETECTDISTANCE 150 //反応距離
+#define DETECTDISTANCE 200 //反応距離
 #define ERR_LED pin_b0//エラー出力用
 #define SPECIALPIN pin_b7//特別動作
 //出力ピンと入力ピン（グローバル変数）
-long outputpins[]	={pin_b5,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4};//pin_b6,
-long inputpins[]	={pin_a1,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3};//pin_a0,
+long outputpins[]	={pin_b6,pin_b5,pin_b4,pin_b3,pin_b2,pin_b1,pin_c4};//
+long inputpins[]	={pin_a0,pin_a1,pin_a2,pin_a3,pin_a4,pin_a5,pin_c3};//
+int flags[] 		={     0,     0,     0,     0,     0,     0,     0};//反応した回数を数える
 int1 flag_ERR=false;
 
 void initializing(void){
@@ -101,6 +102,7 @@ void ExceptionDistanceERR(void)
 	for(i=0; i < sizeof(outputpins)/sizeof(outputpins[0]); ++i)//すべてOFF
 	{
 		output_low(outputpins[i]);
+		flags[i]=0;
 	}
 	output_high(ERR_LED);
 	flag_err=true;//エラー発生
@@ -127,30 +129,36 @@ int interval(void)
 			if(operating!=0 && operating!=inputpins[i])
 			{
 				output_low(outputpins[i]);
+				flags[i]=0;
 				continue;//現在稼働中のpinではない時
 			}
 			
 			//特別動作中はセンサーはすべて作動しない
 			if(input(SPECIALPIN)){
 				output_low(outputpins[i]);
+				flags[i]=0;
 				continue;
 			}
 			
 			//エラーフラグが立っているときもすべて動作しない
 			if(flag_err){
 				output_low(outputpins[i]);
+				flags[i]=0;
 				continue;
 			}
 			
 			
 			if(distance < DETECTDISTANCE)//指定距離内の時
 			{
-				output_high(outputpins[i]);
-				operating=inputpins[i];//現在稼働中を指定
-				continue;
+				if(flags[i]!=uINT_MAX)flags[i]++;//インクリメント（桁あふれ注意）
 			}else{
 				output_low(outputpins[i]);
 				operating=0;//どれも稼働してない
+				flags[i]=0;
+			}
+			if(flags[i]>=3){
+				output_high(outputpins[i]);
+				operating=inputpins[i];//現在稼働中を指定
 			}
 		}
 		else if(SSW_DELAY+100 <= distance){
