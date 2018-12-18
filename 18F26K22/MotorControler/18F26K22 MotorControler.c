@@ -187,7 +187,7 @@ void mainloop(void){
 			THROW(WIND);//関数の終了部へ飛ぶ
 		}
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&!input(pin_left)){//forward
-			if(recent==STOP){
+			if(recent==STOP||lean_rightflag||lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -195,12 +195,10 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else if(recent==FORWARD){
-				output_c(FORWARD);
 			}
 		}
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&!input(pin_left)){//back
-			if(recent==STOP){
+			if(recent==STOP||lean_rightflag||lean_leftflag){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1ms変化待ち
@@ -208,8 +206,6 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else if(recent==BACK){
-				output_c(BACK);
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){//right
@@ -221,8 +217,6 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else if(recent==RIGHT){
-				output_c(RIGHT);
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){//left
@@ -234,72 +228,38 @@ void mainloop(void){
 				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=false;
-			}else if(recent==LEFT){
-				output_c(LEFT);
 			}
 		}
 		//前進+右
 		if(input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){
 			if(recent==FORWARD|| !lean_rightflag|| lean_leftflag){
-				/*
-				output_c(0);//dead time
-				DeparturePwmCounter=0;
-				interval=CHANGEINTERVAL;//1ms変化待ち
-				*/
-				recent=FORWARD;
-				output_high(MOVINGPIN);
 				lean_rightflag=true;
+				Set_pwm3_duty(DetermineDuty(40));
 				lean_leftflag=false;
-			}else{
-				output_c(FORWARD);
 			}
 		}
 		//前進+左
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){
 			if(recent==FORWARD|| lean_rightflag|| !lean_leftflag){
-				/*
-				output_c(0);//dead time
-				DeparturePwmCounter=0;
-				interval=CHANGEINTERVAL;//1ms変化待ち
-				*/
-				recent=FORWARD;
-				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=true;
-			}else{
-				output_c(FORWARD);
+				Set_pwm5_duty(DetermineDuty(40));
 			}
 		}
 		//後進+右
 		if(!input(pin_forward)&&input(pin_back)&&input(pin_right)&&!input(pin_left)){
 			if(recent==BACK|| lean_rightflag|| !lean_leftflag){
-				/*
-				output_c(0);//dead time
-				DeparturePwmCounter=0;
-				interval=CHANGEINTERVAL;//1ms変化待ち
-				*/
-				recent=BACK;
-				output_high(MOVINGPIN);
 				lean_rightflag=false;
 				lean_leftflag=true;
-			}else{
-				output_c(BACK);
+				Set_pwm5_duty(DetermineDuty(40));
 			}
 		}
 		//後進+左
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&input(pin_left)){
 			if(recent==BACK|| !lean_rightflag|| lean_leftflag){
-				/*
-				output_c(0);//dead time
-				DeparturePwmCounter=0;
-				interval=CHANGEINTERVAL;//1ms変化待ち
-				*/
-				recent=BACK;
-				output_high(MOVINGPIN);
 				lean_rightflag=true;
+				Set_pwm3_duty(DetermineDuty(40));
 				lean_leftflag=false;
-			}else{
-				output_c(BACK);
 			}
 		}
 		
@@ -311,14 +271,10 @@ void mainloop(void){
 
 		//発信PWM制御
 		if(DeparturePwmCounter == 0){
-			if(lean_leftflag){
-				Set_pwm5_duty(0);
-			}else{
+			if(!lean_leftflag){
 				Set_pwm5_duty(DetermineDuty(60));
 			}
-			if(lean_rightflag){
-				Set_pwm3_duty(0);
-			}else{
+			if(!lean_rightflag){
 				Set_pwm3_duty(DetermineDuty(60));
 			}
 		}else if(DeparturePwmCounter == 5000L){
