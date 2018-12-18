@@ -122,7 +122,7 @@ void initializing(void){
 
 void change_c(int port){
 	output_c((input_c() & 0xf0) | 0);
-	delay_ms(deadtime);
+	delay_ms(DEADTIME);
 	output_c((input_c() & 0xf0) | port);
 }
 void Exception_ERR(long ms=1000){
@@ -143,20 +143,25 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 	unsigned long jumpcounter =0;//ジャンプの回数を数える。
 	unsigned int timecounter =0;//15625カウント(0.25秒)で1インクリメント
 	unsigned int timingcounter=0;//タイミングカウンタ、timecounterとの違いはいちいち飛ぶたびに初期化される
-	bool edgeflag ;
+	unsigned int stopcounter=0;//モーターが停止している回数を0.25秒おきに数える
+	bool edgeflag=false ;//インタラプタのエッジを見るのに使う
+	bool gapflag=false ;//巻き上げのみの時のフラグの引き継ぎ
 	int duty=20;
 	int nonduty=30;
 	TRY{
 		change_c( WISESTOP);
 		while(!input(STOPTURN)){//ジャンプモーター停止待ち
 		}
+		if(num==0){
+			gapflag=true;//切れ目さがし
+			num+=1;//切れ目の位置にあるのでなければ1回と同じ扱い
+		}
 		
 		output_high(WINDING);
-		if(num==0&&input(INTERRUPT)){//フラグがあり、すでに切れ目にいるならまわさない
+		if(gapflag&&input(INTERRUPT)){//フラグがあり、すでに切れ目にいるならまわさない
 			THROW(END);//関数処理終了
 		}
 		
-		if(num==0)num+=1;//切れ目の位置にあるのでなければ1回と同じ扱い
 		
 		edgeflag=input(INTERRUPT);
 		change_c(CLOCKWISE);//巻き上げを行う
@@ -166,6 +171,16 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 				set_timer0(0);//タイマリセットして
 				if(timecounter<uINT_MAX)timecounter++;//限界行ったら数えるのあきらめる
 				timingcounter++;//インクリメント
+				//ストール検出
+				if(input(STOPTURN)){
+					stopcounter++;//インクリメント
+					if(stopcounter>=6){//1.5秒止まっていたらストールの疑い
+						THROW(ERR);//ERR Throw
+					}
+				}else{
+					stopcounter=0;//停止信号が来ていなければカウンタリセット;
+				}
+				//PWM処理
 				if(nonduty > 0){//まだPWM中だったら
 					duty+=5;//Dutyの比を増やす
 					nonduty-=5;//減らす
@@ -178,11 +193,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			}
 			output_c((input_c() & 0xf0) | CLOCKWISE);//pwm
 			delay_us(duty);
-
-			//ストールの疑い,停止信号が来ていたら
-			if(timecounter >= 7  && input(STOPTURN) ){//約1.75秒後に停止信号が来ていたらエラー
-				THROW(ERR);//ERR Throw
-			}
+			
 			//タイミングをとる
 			if(timingcounter >= 7){
 				timing_bit(true);
@@ -193,7 +204,7 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 			if(edgeflag!=input(INTERRUPT)){//インタラプタに変化があった時
 				edgeflag=input(INTERRUPT);//0なら切れ目から抜ける時、1なら切れ目に入る時
 				if(edgeflag){//切れ目に入ったら
-					if(num==0){//切れ目探しのときはおしまい
+					if(gapflag){//切れ目探しのときはおしまい
 						break;//ジャンプしたとみなすとループ終了
 					}
 					if(timecounter >= 7){//一定時間経ってたら
