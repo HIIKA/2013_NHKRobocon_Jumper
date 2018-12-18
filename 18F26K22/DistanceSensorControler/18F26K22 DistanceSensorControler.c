@@ -322,7 +322,7 @@ int1 check_continue(unsigned int num){
 	}
 	//“Á•Ê“®ì’†‚Í‚Ù‚©‚Ìƒsƒ“’
 	if(input(out_onejump) && !input(out_infjump)){
-		if(inputpins[num]==pin_infjump||inputpins[num]==pin_auto2j){
+		if(inputpins[num]!=pin_onejump){
 			flags[num]=0;
 			bit_clear(trans_data,num);
 			return (1);
@@ -330,7 +330,7 @@ int1 check_continue(unsigned int num){
 	}
 	//“Á•Ê“®ì’†‚Í‚Ù‚©‚Ìƒsƒ“’
 	if(!input(out_onejump) && input(out_infjump)){
-		if(inputpins[num]==pin_onejump||inputpins[num]==pin_auto2j){
+		if(inputpins[num]!=pin_infjump){
 			flags[num]=0;
 			bit_clear(trans_data,num);
 			return (1);
@@ -338,7 +338,7 @@ int1 check_continue(unsigned int num){
 	}
 	//“Á•Ê“®ì’†‚Í‚Ù‚©‚Ìƒsƒ“’
 	if(input(out_onejump) && input(out_infjump)){
-		if(inputpins[num]==pin_onejump||inputpins[num]==pin_infjump){
+		if(inputpins[num]!=pin_auto2j){
 			flags[num]=0;
 			bit_clear(trans_data,num);
 			return (1);
