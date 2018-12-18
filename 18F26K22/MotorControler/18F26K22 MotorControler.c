@@ -187,7 +187,7 @@ void mainloop(void){
 			THROW(WIND);//ä÷êîÇÃèIóπïîÇ÷îÚÇ‘
 		}
 		if(input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&!input(pin_left)){//forward
-			if(recent!=FORWARD|| lean_rightflag || lean_leftflag){
+			if(recent!=FORWARD){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1msïœâªë“Çø
@@ -200,7 +200,7 @@ void mainloop(void){
 			}
 		}
 		if(!input(pin_forward)&&input(pin_back)&&!input(pin_right)&&!input(pin_left)){//back
-			if(recent!=BACK|| lean_rightflag || lean_leftflag){
+			if(recent!=BACK){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1msïœâªë“Çø
@@ -213,7 +213,7 @@ void mainloop(void){
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&input(pin_right)&&!input(pin_left)){//right
-			if(recent!=RIGHT|| lean_rightflag || lean_leftflag){
+			if(recent!=RIGHT){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1msïœâªë“Çø
@@ -226,7 +226,7 @@ void mainloop(void){
 			}
 		}
 		if(!input(pin_forward)&&!input(pin_back)&&!input(pin_right)&&input(pin_left)){//left
-			if(recent!=LEFT|| lean_rightflag || lean_leftflag){
+			if(recent!=LEFT){
 				output_c(0);//dead time
 				DeparturePwmCounter=0;
 				interval=CHANGEINTERVAL;//1msïœâªë“Çø
@@ -313,16 +313,16 @@ void mainloop(void){
 		//î≠êMPWMêßå‰
 		if(DeparturePwmCounter == 0){
 			if(lean_rightflag){
-				DeparturePwmCounter=16000L;
-				Set_pwm3_duty(40);
+				Set_pwm3_duty(0);
 				Set_pwm5_duty(100);
+				DeparturePwmCounter=16000L;
 			}else{
 				Set_pwm3_duty(DetermineDuty(60));
 			}
 			if(lean_leftflag){
-				DeparturePwmCounter=16000L;
-				Set_pwm5_duty(40);
 				Set_pwm3_duty(100);
+				Set_pwm5_duty(0);
+				DeparturePwmCounter=16000L;
 			}else{
 				Set_pwm5_duty(DetermineDuty(60));
 			}
