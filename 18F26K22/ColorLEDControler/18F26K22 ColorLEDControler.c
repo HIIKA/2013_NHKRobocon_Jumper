@@ -144,10 +144,6 @@ void set_color(void){
 		CreateLEDColor(3,1,1,1);//white
 		return;
 	}
-	if(input(MOVING)){
-		CreateLEDColorALL(1, 0, 1);//purple
-		return;
-	}
 	if(jumpingcount==1){
 		//CreateLEDColor(1,1,1,1);//white
 		//CreateLEDColor(2,1,1,1);//white
@@ -166,6 +162,10 @@ void set_color(void){
 	}
 	if(yellowflag){
 		CreateLEDColorALL(1,1,0);//yellow
+		return;
+	}
+	if(input(MOVING)){
+		CreateLEDColorALL(1, 0, 1);//purple
 		return;
 	}
 	if(signalflag){
