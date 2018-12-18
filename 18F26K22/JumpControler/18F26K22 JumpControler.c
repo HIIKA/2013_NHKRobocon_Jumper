@@ -6,6 +6,7 @@
 スイッチ入力ピン				:RA3
 ダミー入力ピン					:RA4
 フォトインタラプタ入力ピン		:RA5
+無限回モード入力ピン			:RA6(RA7)
 タクトスイッチ入力			:RB0 
 エラーLED			:RB1 
 1回ジャンプ入力		:RB2 
@@ -48,6 +49,7 @@
 #define SWITCHINPUT 	pin_a3//スイッチ入力
 #define DAMMYSWITCH		pin_a4//ダミースイッチ入力
 #define INTERRUPT	 	pin_a5//フォトインタラプタ入力
+#define INFINITYMODE	pin_a6//無限回ジャンプの時にHigh
 #define TACTSWITCH		pin_b0//タクトスイッチで性回転の微調整
 #define ERRLED 			pin_b1//エラーが起こると光る
 #define ONEJUMP 		pin_b2//一回ジャンプ（センサー制御部から入力）
@@ -74,7 +76,9 @@
 #define SIGNALCHAR		'G'//ジャンプ
 #define ENDSIGNALCHAR	'g'//ジャンプタイミング消す
 #define CLEARCHAR		'H'//信号CLEAR
+#define INFCLEARCHAR	'h'//無限回ジャンプの時の信号CLEAR
 
+bool infinity_flag=0;
 
 
 
@@ -105,9 +109,15 @@ void initializing(void){
 	set_tris_b(0x8d);//0b10001101
 	set_tris_c(0x80);//0b10000000
 	Setup_timer_0(T0_DIV_256);//1count 16us
-
-	putc(CLEARCHAR);//起動時信号クリア
-
+	
+	if(input(INFINITYMODE)){
+		putc(INFCLEARCHAR);//起動時無限回時信号クリア
+		infinity_flag=true;
+	}else{
+		putc(CLEARCHAR);//起動時信号クリア
+		infinity_flag=false;
+	}
+	
 	//起動待機処理
 	output_high(SEQUENCEMODE);//モーターとか動かないように
 	putc(WAITINGCHAR);
@@ -141,9 +151,9 @@ void Exception_ERR(long ms=1000){
 //巻き上げ処理、これでジャンプも行う
 int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 	unsigned long jumpcounter =0;//ジャンプの回数を数える。
-	unsigned int timecounter =0;//15625カウント(0.25秒)で1インクリメント
+	unsigned int timecounter =0;//12500カウント(0.2秒)で1インクリメント
 	unsigned int timingcounter=0;//タイミングカウンタ、timecounterとの違いはいちいち飛ぶたびに初期化される
-	unsigned int stopcounter=0;//モーターが停止している回数を0.25秒おきに数える
+	unsigned int stopcounter=0;//モーターが停止している回数を0.2秒おきに数える
 	bool edgeflag=false ;//インタラプタのエッジを見るのに使う
 	bool gapflag=false ;//巻き上げのみの時のフラグの引き継ぎ
 	int duty=20;
@@ -167,27 +177,27 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 		change_c(CLOCKWISE);//巻き上げを行う
 		set_timer0(0);
 		do{//while(jumpcounter<num);
-			if(get_timer0()>=15625L){//指定回数で
+			if(get_timer0()>=12500L){//指定回数で
 				set_timer0(0);//タイマリセットして
 				if(timecounter<uINT_MAX)timecounter++;//限界行ったら数えるのあきらめる
 				timingcounter++;//インクリメント
 				//ストール検出
 				if(input(STOPTURN)){
 					stopcounter++;//インクリメント
-					if(stopcounter>=4){//1.0秒止まっていたらストールの疑い
+					if(stopcounter>=5){//1.0秒止まっていたらストールの疑い
 						THROW(ERR);//ERR Throw
 					}
 				}else{
 					stopcounter=0;//停止信号が来ていなければカウンタリセット;
 				}
 				//PWM処理
-				if(nonduty > 5){//まだPWM中だったら
+				if(nonduty > 0){//まだPWM中だったら
 					duty+=5;//Dutyの比を増やす
 					nonduty-=5;//減らす
 				}
 			}
 			
-			if(nonduty > 5){//まだPWMが終わってなければ
+			if(nonduty > 0){//まだPWMが終わってなければ
 				output_c((input_c() & 0xf0) | 0);//pwm
 				delay_us(nonduty);
 			}
@@ -210,8 +220,8 @@ int Sequence_Winding(unsigned long num=1){//0の時は巻き上げのみ行う
 					if(timecounter >= 4){//動き出しから一定時間経ってたら
 						jumpcounter++;//ジャンプしたとみなす
 						timingcounter=0;
-						duty=10;//PWMreset
-						nonduty=40;
+						duty=0;//PWMreset
+						nonduty=50;
 					}
 				}else{//切れ目から抜けたら
 					
@@ -359,7 +369,12 @@ int main(void)
 		}
 		
 		if(input(INFINITYJUMP)){
-			Sequence_Infinityjump(6);
+			if(infinity_flag){//無限ジャンプするべきか否か
+				Sequence_Infinityjump(uLONG_MAX);
+			}else{
+				Sequence_Infinityjump(6);
+			}
+			
 			movingflag=true;//管轄外に行ったので動いていたことにする
 		}
 		
