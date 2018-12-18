@@ -224,12 +224,7 @@ int main(void)
 			if(input(TACTSWITCH)){//微調整スイッチ...いきいますよー
 				output_high(WINDING);
 				change_c(CLOCKWISE);
-				while(input(TACTSWITCH)){
-					output_c((input_c() & 0xf0) | CLOCKWISE);//pwm
-					delay_us(29);
-					output_c((input_c() & 0xf0) | 0);//pwm
-					delay_us(21);
-				}
+				while(input(TACTSWITCH)){}//動かすんです。
 				change_c(WISESTOP);
 				output_low (WINDING);
 			}
